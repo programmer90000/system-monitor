@@ -37,6 +37,42 @@ float read_temperature_file(const char *filename) {
     return temp / 1000.0;
 }
 
+float get_cpu_usage() {
+    static unsigned long long last_total = 0, last_idle = 0;
+    FILE *file = fopen("/proc/stat", "r");
+    if (file == NULL) {
+        return -1.0;
+    }
+    
+    char line[256];
+    if (fgets(line, sizeof(line), file) == NULL) {
+        fclose(file);
+        return -1.0;
+    }
+    
+    fclose(file);
+    
+    unsigned long long user, nice, system, idle, iowait, irq, softirq, steal;
+    if (sscanf(line, "cpu  %llu %llu %llu %llu %llu %llu %llu %llu", 
+               &user, &nice, &system, &idle, &iowait, &irq, &softirq, &steal) != 8) {
+        return -1.0;
+    }
+    
+    unsigned long long total = user + nice + system + idle + iowait + irq + softirq + steal;
+    unsigned long long total_diff = total - last_total;
+    unsigned long long idle_diff = idle - last_idle;
+    
+    float usage = 0.0;
+    if (total_diff > 0 && last_total > 0) {
+        usage = 100.0 * (1.0 - (float)idle_diff / total_diff);
+    }
+    
+    last_total = total;
+    last_idle = idle;
+    
+    return usage;
+}
+
 float get_cpu_temperature() {
     const char *thermal_files[] = {
         "/sys/class/thermal/thermal_zone0/temp",
@@ -426,19 +462,20 @@ int main() {
     
     find_storage_devices();
 
-    printf("CPU, GPU, VRM, Chipset, Motherboard, PSU, Case and Storage Temperature Monitor - Press Ctrl+C to exit\n");
-    printf("Time          CPU Temp (°C)   GPU Temp (°C)   VRM Temp (°C)   Chipset Temp (°C)   Motherboard Temp (°C)   PSU Temp (°C)   Case Temp (°C)");
+    printf("CPU Usage, CPU, GPU, VRM, Chipset, Motherboard, PSU, Case and Storage Temperature Monitor - Press Ctrl+C to exit\n");
+    printf("Time          CPU Usage (%%)   CPU Temp (°C)   GPU Temp (°C)   VRM Temp (°C)   Chipset Temp (°C)   Motherboard Temp (°C)   PSU Temp (°C)   Case Temp (°C)");
     for (int i = 0; i < storage_device_count; i++) {
         printf("   %s Temp (°C)", storage_devices[i].name);
     }
     printf("\n");
-    printf("------------------------------------------------------------------------------------------------------------------------------------------");
+    printf("----------------------------------------------------------------------------------------------------------------------------------------------------------");
     for (int i = 0; i < storage_device_count; i++) {
         printf("----------------");
     }
     printf("\n");
 
     while (!stop) {
+        float cpu_usage = get_cpu_usage();
         float cpu_temp = get_cpu_temperature();
         float gpu_temp = get_gpu_temperature();
         float vrm_temp = get_vrm_temperature();
@@ -448,6 +485,13 @@ int main() {
         float case_temp = get_case_temperature();
         
         print_timestamp();
+        
+        // Print CPU usage
+        if (cpu_usage >= 0) {
+            printf("  %4.1f%%      ", cpu_usage);
+        } else {
+            printf("     N/A       ");
+        }
         
         // Print CPU temperature
         if (cpu_temp >= 0) {
