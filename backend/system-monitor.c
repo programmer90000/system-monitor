@@ -479,21 +479,21 @@ int main() {
         
         // Print Motherboard temperature
         if (motherboard_temp >= 0) {
-            printf("%17.1f°C      ", motherboard_temp);
+            printf("%12.1f°C      ", motherboard_temp);
         } else {
             printf("     N/A      ");
         }
         
         // Print PSU temperature
         if (psu_temp >= 0) {
-            printf("%11.1f°C", psu_temp);
+            printf("%16.1f°C", psu_temp);
         } else {
             printf("     N/A  ");
         }
 
         // Print Case temperature
         if (case_temp >= 0) {
-            printf("%12.1f°C", case_temp);
+            printf("%14.1f°C", case_temp);
         } else {
             printf("     N/A  ");
         }
@@ -501,7 +501,7 @@ int main() {
         // Print individual Storage Devices temperature
         for (int i = 0; i < storage_device_count; i++) {
             float temp = get_storage_temperature(storage_devices[i].path);
-            if (temp >= 0) printf("   %19.1f°C", temp);
+            if (temp >= 0) printf("   %12.1f°C", temp);
             else printf("     N/A");
         }
         
