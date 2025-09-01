@@ -3,12 +3,22 @@
 #include <unistd.h>
 #include <time.h>
 #include <signal.h>
+#include <dirent.h>
+#include <string.h>
 
 volatile sig_atomic_t stop = 0;
 
 void handle_signal(int sig) {
     stop = 1;
 }
+
+typedef struct {
+    char name[64];
+    char path[256];
+} StorageDevice;
+
+StorageDevice *storage_devices = NULL;
+int storage_device_count = 0;
 
 float read_temperature_file(const char *filename) {
     FILE *file = fopen(filename, "r");
@@ -156,6 +166,70 @@ float get_motherboard_temperature() {
     return -1.0;
 }
 
+void find_storage_devices() {
+    DIR *dir = opendir("/sys/class/hwmon");
+    if (!dir) return;
+
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL) {
+        if (strncmp(entry->d_name, "hwmon", 5) != 0) continue;
+
+        char name_path[256];
+        snprintf(name_path, sizeof(name_path), "/sys/class/hwmon/%s/name", entry->d_name);
+
+        FILE *f = fopen(name_path, "r");
+        if (!f) continue;
+
+        char devname[64];
+        if (fscanf(f, "%63s", devname) == 1) {
+            if (strstr(devname, "nvme") || strstr(devname, "drivetemp")) {
+                // Try to get the parent device name (e.g., nvme0)
+                char device_path[256];
+                snprintf(device_path, sizeof(device_path), "/sys/class/hwmon/%s/device", entry->d_name);
+
+                char real_device[256];
+                ssize_t len = readlink(device_path, real_device, sizeof(real_device)-1);
+                if (len != -1) {
+                    real_device[len] = '\0';
+                    // Extract just the last part (like nvme0)
+                    char *base = strrchr(real_device, '/');
+                    if (base) base++; else base = real_device;
+
+                    // Find first temp*_input
+                    for (int i = 1; i < 10; i++) {
+                        char temp_path[256];
+                        snprintf(temp_path, sizeof(temp_path), "/sys/class/hwmon/%s/temp%d_input", entry->d_name, i);
+                        FILE *tf = fopen(temp_path, "r");
+                        if (tf) {
+                            fclose(tf);
+                            
+                            // Allocate or reallocate storage devices array
+                            StorageDevice *temp = realloc(storage_devices, (storage_device_count + 1) * sizeof(StorageDevice));
+                            if (temp == NULL) {
+                                fclose(f);
+                                closedir(dir);
+                                return;
+                            }
+                            storage_devices = temp;
+                            
+                            strncpy(storage_devices[storage_device_count].name, base, sizeof(storage_devices[0].name)-1);
+                            strncpy(storage_devices[storage_device_count].path, temp_path, sizeof(storage_devices[0].path)-1);
+                            storage_device_count++;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        fclose(f);
+    }
+    closedir(dir);
+}
+
+float get_storage_temperature(const char *path) {
+    return read_temperature_file(path);
+}
+
 void print_timestamp() {
     time_t now = time(NULL);
     struct tm *t = localtime(&now);
@@ -166,10 +240,20 @@ int main() {
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
     
-    printf("CPU, GPU, VRM, Chipset, and Motherboard Temperature Monitor - Press Ctrl+C to exit\n");
-    printf("Time          CPU Temp (°C)   GPU Temp (°C)   VRM Temp (°C)   Chipset Temp (°C)   Motherboard Temp (°C)\n");
-    printf("------------------------------------------------------------------------------------------------------\n");
-    
+    find_storage_devices();
+
+    printf("CPU, GPU, VRM, Chipset, Motherboard, and Storage Temperature Monitor - Press Ctrl+C to exit\n");
+    printf("Time          CPU Temp (°C)   GPU Temp (°C)   VRM Temp (°C)   Chipset Temp (°C)   Motherboard Temp (°C)");
+    for (int i = 0; i < storage_device_count; i++) {
+        printf("   %s Temp (°C)", storage_devices[i].name);
+    }
+    printf("\n");
+    printf("------------------------------------------------------------------------------------------------------");
+    for (int i = 0; i < storage_device_count; i++) {
+        printf("----------------");
+    }
+    printf("\n");
+
     while (!stop) {
         float cpu_temp = get_cpu_temperature();
         float gpu_temp = get_gpu_temperature();
@@ -213,11 +297,20 @@ int main() {
         } else {
             printf("     N/A");
         }
+
+        // Print individual Storage Devices temperature
+        for (int i = 0; i < storage_device_count; i++) {
+            float temp = get_storage_temperature(storage_devices[i].path);
+            if (temp >= 0) printf("   %19.1f°C", temp);
+            else printf("     N/A");
+        }
         
         printf("\n");
-        
         sleep(1); // Update every second
     }
+    
+    // Free allocated memory
+    free(storage_devices);
     
     printf("\nMonitoring stopped.\n");
     return 0;
