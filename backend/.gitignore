@@ -1,0 +1,96 @@
+# Compiled executables
+system-monitor
+system-monitor.exe
+*.exe
+
+# Compiled object files
+*.o
+*.ko
+*.obj
+*.elf
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+*.ilk
+
+# Kernel Module Compile Results
+*.mod*
+*.cmd
+.tmp_versions/
+modules.order
+Module.symvers
+Mkfile.old
+dkms.conf
+
+# Backup files
+*~
+*.bak
+*.swp
+*.swo
+*.swn
+
+# IDE specific files
+.vscode/
+.idea/
+*.workspace
+*.code-workspace
+
+# Build directories
+build/
+dist/
+bin/
+obj/
+Debug/
+Release/
+
+# Dependency directories
+deps/
+vendor/
+
+# Log files
+*.log
+logs/
+
+# Temporary files
+*.tmp
+temp/
+
+# macOS specific
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows specific
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# Linux specific
+*.autosave
+
+# Coverage reports
+*.gcno
+*.gcda
+*.gcov
+
+# Package files
+*.deb
+*.rpm
+*.tar.gz
+*.zip
+
+# Documentation generated files
+docs/_build/
