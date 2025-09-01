@@ -46,6 +46,31 @@ float get_cpu_temperature() {
     return -1.0;
 }
 
+float get_gpu_temperature() {
+    const char *gpu_files[] = {
+        "/sys/class/drm/card0/device/hwmon/hwmon0/temp1_input",
+        "/sys/class/drm/card0/device/hwmon/hwmon1/temp1_input",
+        "/sys/class/drm/card1/device/hwmon/hwmon0/temp1_input",
+        "/sys/class/drm/card1/device/hwmon/hwmon1/temp1_input",
+        "/sys/class/drm/card0/device/hwmon/hwmon2/temp1_input",
+        "/sys/class/drm/card0/device/hwmon/hwmon3/temp1_input",
+        "/sys/class/drm/card1/device/hwmon/hwmon2/temp1_input",
+        "/sys/class/drm/card1/device/hwmon/hwmon3/temp1_input",
+        "/sys/class/hwmon/hwmon3/temp1_input",
+        "/sys/class/hwmon/hwmon4/temp1_input",
+        NULL
+    };
+    
+    for (int i = 0; gpu_files[i] != NULL; i++) {
+        float temp = read_temperature_file(gpu_files[i]);
+        if (temp >= 0) {
+            return temp;
+        }
+    }
+    
+    return -1.0;
+}
+
 void print_timestamp() {
     time_t now = time(NULL);
     struct tm *t = localtime(&now);
@@ -56,19 +81,29 @@ int main() {
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
     
-    printf("CPU Temperature Monitor - Press Ctrl+C to exit\n");
-    printf("Time\t\tTemperature (°C)\n");
-    printf("----------------------------\n");
+    printf("CPU and GPU Temperature Monitor - Press Ctrl+C to exit\n");
+    printf("Time          CPU Temp (°C)   GPU Temp (°C)\n");
+    printf("--------------------------------------------\n");
     
     while (!stop) {
-        float temp = get_cpu_temperature();
+        float cpu_temp = get_cpu_temperature();
+        float gpu_temp = get_gpu_temperature();
         
         print_timestamp();
-        if (temp >= 0) {
-            printf("CPU Temp: %.1f°C\n", temp);
+        if (cpu_temp >= 0) {
+            printf("  %5.1f°C      ", cpu_temp);
         } else {
-            printf("Error: Could not read temperature\n");
+            printf("     N/A       ");
         }
+        
+        // Print GPU temperature with proper alignment
+        if (gpu_temp >= 0) {
+            printf("%8.1f°C", gpu_temp);
+        } else {
+            printf("   N/A");
+        }
+        
+        printf("\n");
         
         sleep(1); // Update every second
     }
