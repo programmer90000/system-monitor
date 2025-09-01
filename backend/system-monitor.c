@@ -486,7 +486,7 @@ int main() {
     find_storage_devices();
 
     printf("CPU Usage, Load Average, CPU, GPU, VRM, Chipset, Motherboard, PSU, Case and Storage Temperature Monitor - Press Ctrl+C to exit\n");
-    printf("Time          CPU Usage (%%)   Load (1/5/15min)   CPU Temp (°C)   GPU Temp (°C)   VRM Temp (°C)   Chipset Temp (°C)   Motherboard Temp (°C)   PSU Temp (°C)   Case Temp (°C)");
+    printf("Time          CPU Usage (%%)   Load (1/5/15min)    CPU Temp (°C)   GPU Temp (°C)   VRM Temp (°C)   Chipset Temp (°C)   Motherboard Temp (°C)   PSU Temp (°C)   Case Temp (°C)");
     for (int i = 0; i < storage_device_count; i++) {
         printf("   %s Temp (°C)", storage_devices[i].name);
     }
@@ -519,14 +519,14 @@ int main() {
         
         // Print Load averages
         if (load.load_1min >= 0 && load.load_5min >= 0 && load.load_15min >= 0) {
-            printf("  %4.2f/%4.2f/%4.2f      ", load.load_1min, load.load_5min, load.load_15min);
+            printf("  %8.2f/%4.2f/%4.2f      ", load.load_1min, load.load_5min, load.load_15min);
         } else {
             printf("     N/A/N/A/N/A      ");
         }
         
         // Print CPU temperature
         if (cpu_temp >= 0) {
-            printf("  %8.1f°C      ", cpu_temp);
+            printf("%2.1f°C      ", cpu_temp);
         } else {
             printf("     N/A       ");
         }
