@@ -71,6 +71,34 @@ float get_gpu_temperature() {
     return -1.0;
 }
 
+float get_vrm_temperature() {
+    const char *vrm_files[] = {
+        "/sys/class/hwmon/hwmon0/temp2_input",
+        "/sys/class/hwmon/hwmon1/temp2_input",
+        "/sys/class/hwmon/hwmon2/temp2_input",
+        "/sys/class/hwmon/hwmon3/temp2_input",
+        "/sys/class/hwmon/hwmon0/temp3_input",
+        "/sys/class/hwmon/hwmon1/temp3_input",
+        "/sys/class/hwmon/hwmon2/temp3_input",
+        "/sys/class/hwmon/hwmon3/temp3_input",
+        "/sys/class/hwmon/hwmon0/in0_input",
+        "/sys/class/hwmon/hwmon1/in0_input",
+        "/sys/devices/platform/coretemp.0/hwmon/hwmon*/temp2_input",
+        "/sys/class/thermal/thermal_zone2/temp",
+        "/sys/class/thermal/thermal_zone3/temp",
+        NULL
+    };
+
+    for (int i = 0; vrm_files[i] != NULL; i++) {
+        float temp = read_temperature_file(vrm_files[i]);
+        if (temp >= 0) {
+            return temp;
+        }
+    }
+
+    return -1.0;
+}
+
 void print_timestamp() {
     time_t now = time(NULL);
     struct tm *t = localtime(&now);
@@ -81,26 +109,36 @@ int main() {
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
     
-    printf("CPU and GPU Temperature Monitor - Press Ctrl+C to exit\n");
-    printf("Time          CPU Temp (°C)   GPU Temp (°C)\n");
-    printf("--------------------------------------------\n");
+    printf("CPU, GPU, and VRM Temperature Monitor - Press Ctrl+C to exit\n");
+    printf("Time          CPU Temp (°C)   GPU Temp (°C)   VRM Temp (°C)\n");
+    printf("-----------------------------------------------------------\n");
     
     while (!stop) {
         float cpu_temp = get_cpu_temperature();
         float gpu_temp = get_gpu_temperature();
+        float vrm_temp = get_vrm_temperature();
         
         print_timestamp();
+        
+        // Print CPU temperature
         if (cpu_temp >= 0) {
             printf("  %5.1f°C      ", cpu_temp);
         } else {
             printf("     N/A       ");
         }
         
-        // Print GPU temperature with proper alignment
+        // Print GPU temperature
         if (gpu_temp >= 0) {
-            printf("%8.1f°C", gpu_temp);
+            printf("%8.1f°C      ", gpu_temp);
         } else {
-            printf("   N/A");
+            printf("     N/A      ");
+        }
+        
+        // Print VRM temperature
+        if (vrm_temp >= 0) {
+            printf("%8.1f°C", vrm_temp);
+        } else {
+            printf("     N/A");
         }
         
         printf("\n");
