@@ -18,6 +18,12 @@ typedef struct {
     char path[256];
 } StorageDevice;
 
+typedef struct {
+    float load_1min;
+    float load_5min;
+    float load_15min;
+} LoadAverage;
+
 StorageDevice *storage_devices = NULL;
 int storage_device_count = 0;
 
@@ -35,6 +41,23 @@ float read_temperature_file(const char *filename) {
     
     fclose(file);
     return temp / 1000.0;
+}
+
+LoadAverage get_load_average() {
+    LoadAverage load = {-1.0, -1.0, -1.0};
+    FILE *file = fopen("/proc/loadavg", "r");
+    if (file == NULL) {
+        return load;
+    }
+    
+    if (fscanf(file, "%f %f %f", &load.load_1min, &load.load_5min, &load.load_15min) != 3) {
+        fclose(file);
+        load.load_1min = load.load_5min = load.load_15min = -1.0;
+        return load;
+    }
+    
+    fclose(file);
+    return load;
 }
 
 float get_cpu_usage() {
@@ -462,13 +485,13 @@ int main() {
     
     find_storage_devices();
 
-    printf("CPU Usage, CPU, GPU, VRM, Chipset, Motherboard, PSU, Case and Storage Temperature Monitor - Press Ctrl+C to exit\n");
-    printf("Time          CPU Usage (%%)   CPU Temp (°C)   GPU Temp (°C)   VRM Temp (°C)   Chipset Temp (°C)   Motherboard Temp (°C)   PSU Temp (°C)   Case Temp (°C)");
+    printf("CPU Usage, Load Average, CPU, GPU, VRM, Chipset, Motherboard, PSU, Case and Storage Temperature Monitor - Press Ctrl+C to exit\n");
+    printf("Time          CPU Usage (%%)   Load (1/5/15min)   CPU Temp (°C)   GPU Temp (°C)   VRM Temp (°C)   Chipset Temp (°C)   Motherboard Temp (°C)   PSU Temp (°C)   Case Temp (°C)");
     for (int i = 0; i < storage_device_count; i++) {
         printf("   %s Temp (°C)", storage_devices[i].name);
     }
     printf("\n");
-    printf("----------------------------------------------------------------------------------------------------------------------------------------------------------");
+    printf("--------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
     for (int i = 0; i < storage_device_count; i++) {
         printf("----------------");
     }
@@ -476,6 +499,7 @@ int main() {
 
     while (!stop) {
         float cpu_usage = get_cpu_usage();
+        LoadAverage load = get_load_average();
         float cpu_temp = get_cpu_temperature();
         float gpu_temp = get_gpu_temperature();
         float vrm_temp = get_vrm_temperature();
@@ -491,6 +515,13 @@ int main() {
             printf("  %4.1f%%      ", cpu_usage);
         } else {
             printf("     N/A       ");
+        }
+        
+        // Print Load averages
+        if (load.load_1min >= 0 && load.load_5min >= 0 && load.load_15min >= 0) {
+            printf("  %4.2f/%4.2f/%4.2f      ", load.load_1min, load.load_5min, load.load_15min);
+        } else {
+            printf("     N/A/N/A/N/A      ");
         }
         
         // Print CPU temperature
