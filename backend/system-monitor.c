@@ -126,6 +126,36 @@ float get_chipset_temperature() {
     return -1.0;
 }
 
+float get_motherboard_temperature() {
+    const char *motherboard_files[] = {
+        "/sys/class/hwmon/hwmon0/temp3_input",
+        "/sys/class/hwmon/hwmon1/temp3_input",
+        "/sys/class/hwmon/hwmon2/temp3_input",
+        "/sys/class/hwmon/hwmon3/temp3_input",
+        "/sys/class/hwmon/hwmon0/temp6_input",
+        "/sys/class/hwmon/hwmon1/temp6_input",
+        "/sys/class/hwmon/hwmon2/temp6_input",
+        "/sys/class/hwmon/hwmon3/temp6_input",
+        "/sys/class/hwmon/hwmon0/temp7_input",
+        "/sys/class/hwmon/hwmon1/temp7_input",
+        "/sys/class/hwmon/hwmon2/temp7_input",
+        "/sys/class/hwmon/hwmon3/temp7_input",
+        "/sys/class/thermal/thermal_zone8/temp",
+        "/sys/class/thermal/thermal_zone9/temp",
+        "/sys/class/thermal/thermal_zone10/temp",
+        NULL
+    };
+
+    for (int i = 0; motherboard_files[i] != NULL; i++) {
+        float temp = read_temperature_file(motherboard_files[i]);
+        if (temp >= 0) {
+            return temp;
+        }
+    }
+
+    return -1.0;
+}
+
 void print_timestamp() {
     time_t now = time(NULL);
     struct tm *t = localtime(&now);
@@ -136,15 +166,16 @@ int main() {
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
     
-    printf("CPU, GPU, VRM, and Chipset Temperature Monitor - Press Ctrl+C to exit\n");
-    printf("Time          CPU Temp (°C)   GPU Temp (°C)   VRM Temp (°C)   Chipset Temp (°C)\n");
-    printf("--------------------------------------------------------------------------------\n");
+    printf("CPU, GPU, VRM, Chipset, and Motherboard Temperature Monitor - Press Ctrl+C to exit\n");
+    printf("Time          CPU Temp (°C)   GPU Temp (°C)   VRM Temp (°C)   Chipset Temp (°C)   Motherboard Temp (°C)\n");
+    printf("------------------------------------------------------------------------------------------------------\n");
     
     while (!stop) {
         float cpu_temp = get_cpu_temperature();
         float gpu_temp = get_gpu_temperature();
         float vrm_temp = get_vrm_temperature();
         float chipset_temp = get_chipset_temperature();
+        float motherboard_temp = get_motherboard_temperature();
         
         print_timestamp();
         
@@ -171,7 +202,14 @@ int main() {
         
         // Print Chipset temperature
         if (chipset_temp >= 0) {
-            printf("%8.1f°C", chipset_temp);
+            printf("%8.1f°C      ", chipset_temp);
+        } else {
+            printf("     N/A      ");
+        }
+        
+        // Print Motherboard temperature
+        if (motherboard_temp >= 0) {
+            printf("%12.1f°C", motherboard_temp);
         } else {
             printf("     N/A");
         }
