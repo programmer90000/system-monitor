@@ -485,7 +485,7 @@ int main() {
     
     find_storage_devices();
 
-    printf("CPU Usage, Load Average, CPU, GPU, VRM, Chipset, Motherboard, PSU, Case and Storage Temperature Monitor - Press Ctrl+C to exit\n");
+    printf("CPU Usage, Load Average, CPU, GPU, VRM, Chipset, Motherboard, PSU, Case and Storage Temperature Monitor - Press Ctrl+C to exit\n\n");
     printf("Time          CPU Usage (%%)   Load (1/5/15min)    CPU Temp (°C)   GPU Temp (°C)   VRM Temp (°C)   Chipset Temp (°C)   Motherboard Temp (°C)   PSU Temp (°C)   Case Temp (°C)");
     for (int i = 0; i < storage_device_count; i++) {
         printf("   %s Temp (°C)", storage_devices[i].name);
