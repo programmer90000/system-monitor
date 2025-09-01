@@ -495,7 +495,7 @@ int main() {
         
         // Print CPU temperature
         if (cpu_temp >= 0) {
-            printf("  %5.1f°C      ", cpu_temp);
+            printf("  %8.1f°C      ", cpu_temp);
         } else {
             printf("     N/A       ");
         }
