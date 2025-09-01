@@ -276,6 +276,78 @@ float get_psu_temperature() {
     return -1.0;
 }
 
+float get_case_temperature() {
+    const char *case_files[] = {
+        "/sys/class/hwmon/hwmon*/temp3_input",
+        "/sys/class/hwmon/hwmon*/temp4_input",
+        "/sys/class/hwmon/hwmon*/temp5_input",
+        "/sys/class/hwmon/hwmon*/temp6_input",
+        "/sys/class/hwmon/hwmon*/temp7_input",
+        "/sys/class/hwmon/hwmon*/temp8_input",
+        "/sys/class/hwmon/hwmon*/temp9_input",
+        "/sys/class/hwmon/hwmon*/temp10_input",
+        "/sys/class/thermal/thermal_zone*/temp",
+        "/sys/devices/platform/nct6775.*/hwmon/hwmon*/temp*_input",
+        "/sys/devices/platform/it87.*/hwmon/hwmon*/temp*_input",
+        "/sys/devices/platform/f71882fg.*/hwmon/hwmon*/temp*_input",
+        NULL
+    };
+
+    DIR *dir = opendir("/sys/class/hwmon");
+    if (dir) {
+        struct dirent *entry;
+        while ((entry = readdir(dir)) != NULL) {
+            if (strncmp(entry->d_name, "hwmon", 5) != 0) continue;
+
+            for (int i = 1; i <= 10; i++) {
+                char label_path[256];
+                snprintf(label_path, sizeof(label_path), 
+                        "/sys/class/hwmon/%s/temp%d_label", entry->d_name, i);
+                
+                FILE *f = fopen(label_path, "r");
+                if (f) {
+                    char label[64];
+                    if (fscanf(f, "%63s", label) == 1) {
+                        if (strstr(label, "case") || strstr(label, "Case") || 
+                            strstr(label, "CASE") || strstr(label, "ambient") ||
+                            strstr(label, "Ambient") || strstr(label, "AMBIENT")) {
+                            
+                            char temp_path[256];
+                            snprintf(temp_path, sizeof(temp_path), 
+                                    "/sys/class/hwmon/%s/temp%d_input", entry->d_name, i);
+                            
+                            float temp = read_temperature_file(temp_path);
+                            fclose(f);
+                            if (temp >= 0) {
+                                closedir(dir);
+                                return temp;
+                            }
+                        }
+                    }
+                    fclose(f);
+                }
+            }
+        }
+        closedir(dir);
+    }
+
+    for (int i = 0; case_files[i] != NULL; i++) {
+        glob_t glob_result;
+        if (glob(case_files[i], GLOB_NOSORT, NULL, &glob_result) == 0) {
+            for (size_t j = 0; j < glob_result.gl_pathc; j++) {
+                float temp = read_temperature_file(glob_result.gl_pathv[j]);
+                if (temp >= 0) {
+                    globfree(&glob_result);
+                    return temp;
+                }
+            }
+            globfree(&glob_result);
+        }
+    }
+
+    return -1.0;
+}
+
 void find_storage_devices() {
     DIR *dir = opendir("/sys/class/hwmon");
     if (!dir) return;
@@ -354,13 +426,13 @@ int main() {
     
     find_storage_devices();
 
-    printf("CPU, GPU, VRM, Chipset, Motherboard, PSU, and Storage Temperature Monitor - Press Ctrl+C to exit\n");
-    printf("Time          CPU Temp (°C)   GPU Temp (°C)   VRM Temp (°C)   Chipset Temp (°C)   Motherboard Temp (°C)   PSU Temp (°C)");
+    printf("CPU, GPU, VRM, Chipset, Motherboard, PSU, Case and Storage Temperature Monitor - Press Ctrl+C to exit\n");
+    printf("Time          CPU Temp (°C)   GPU Temp (°C)   VRM Temp (°C)   Chipset Temp (°C)   Motherboard Temp (°C)   PSU Temp (°C)   Case Temp (°C)");
     for (int i = 0; i < storage_device_count; i++) {
         printf("   %s Temp (°C)", storage_devices[i].name);
     }
     printf("\n");
-    printf("----------------------------------------------------------------------------------------------------------------------");
+    printf("------------------------------------------------------------------------------------------------------------------------------------------");
     for (int i = 0; i < storage_device_count; i++) {
         printf("----------------");
     }
@@ -373,6 +445,7 @@ int main() {
         float chipset_temp = get_chipset_temperature();
         float motherboard_temp = get_motherboard_temperature();
         float psu_temp = get_psu_temperature();
+        float case_temp = get_case_temperature();
         
         print_timestamp();
         
@@ -414,6 +487,13 @@ int main() {
         // Print PSU temperature
         if (psu_temp >= 0) {
             printf("%11.1f°C", psu_temp);
+        } else {
+            printf("     N/A  ");
+        }
+
+        // Print Case temperature
+        if (case_temp >= 0) {
+            printf("%12.1f°C", case_temp);
         } else {
             printf("     N/A  ");
         }
