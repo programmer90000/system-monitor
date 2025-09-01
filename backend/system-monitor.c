@@ -5,6 +5,7 @@
 #include <signal.h>
 #include <dirent.h>
 #include <string.h>
+#include <glob.h>
 
 volatile sig_atomic_t stop = 0;
 
@@ -166,6 +167,115 @@ float get_motherboard_temperature() {
     return -1.0;
 }
 
+float get_psu_temperature() {    
+    DIR *dir = opendir("/sys/class/hwmon");
+    if (dir) {
+        struct dirent *entry;
+        while ((entry = readdir(dir)) != NULL) {
+            if (strncmp(entry->d_name, "hwmon", 5) != 0) continue;
+
+            char name_path[256];
+            snprintf(name_path, sizeof(name_path), "/sys/class/hwmon/%s/name", entry->d_name);
+
+            FILE *f = fopen(name_path, "r");
+            if (!f) continue;
+
+            char devname[64];
+            if (fscanf(f, "%63s", devname) == 1) {
+                // Check if this might be a PSU monitoring device
+                if (strstr(devname, "psu") || strstr(devname, "PSU") || 
+                    strstr(devname, "corsair") || strstr(devname, "Corsair") ||
+                    strstr(devname, "seasonic") || strstr(devname, "Seasonic") ||
+                    strstr(devname, "evga") || strstr(devname, "EVGA") ||
+                    strstr(devname, "bequiet") || strstr(devname, "BeQuiet") ||
+                    strstr(devname, "rm850x") || strstr(devname, "RM850x") ||
+                    strstr(devname, "hx1000") || strstr(devname, "HX1000")) {
+                    
+                    // Try to find temperature sensors
+                    for (int i = 1; i <= 5; i++) {
+                        char temp_path[256];
+                        snprintf(temp_path, sizeof(temp_path), 
+                                "/sys/class/hwmon/%s/temp%d_input", entry->d_name, i);
+                        
+                        float temp = read_temperature_file(temp_path);
+                        if (temp >= 0) {
+                            fclose(f);
+                            closedir(dir);
+                            return temp;
+                        }
+                    }
+                }
+            }
+            fclose(f);
+        }
+        closedir(dir);
+    }
+    
+    const char *psu_files[] = {
+        "/sys/class/hwmon/hwmon*/temp1_input",
+        "/sys/class/hwmon/hwmon*/temp2_input",
+        "/sys/class/hwmon/hwmon*/temp3_input",
+        "/sys/class/hwmon/hwmon*/temp4_input",
+        "/sys/class/hwmon/hwmon*/temp5_input",
+        "/sys/class/hwmon/hwmon*/power*/temp1_input",
+        "/sys/class/hwmon/hwmon*/power*/temp2_input",
+        NULL
+    };
+    
+    for (int i = 0; psu_files[i] != NULL; i++) {
+        glob_t glob_result;
+        if (glob(psu_files[i], GLOB_NOSORT, NULL, &glob_result) == 0) {
+            for (size_t j = 0; j < glob_result.gl_pathc; j++) {
+                float temp = read_temperature_file(glob_result.gl_pathv[j]);
+                if (temp >= 0) {
+                    globfree(&glob_result);
+                    return temp;
+                }
+            }
+            globfree(&glob_result);
+        }
+    }
+    
+    dir = opendir("/sys/class/power_supply");
+    if (dir) {
+        struct dirent *entry;
+        while ((entry = readdir(dir)) != NULL) {
+            if (entry->d_name[0] == '.') continue;
+            
+            char temp_path[256];
+            snprintf(temp_path, sizeof(temp_path), 
+                    "/sys/class/power_supply/%s/temp", entry->d_name);
+            
+            float temp = read_temperature_file(temp_path);
+            if (temp >= 0) {
+                closedir(dir);
+                return temp;
+            }
+            
+            // Check for temperature in hwmon subdirectory
+            char hwmon_path[256];
+            snprintf(hwmon_path, sizeof(hwmon_path), 
+                    "/sys/class/power_supply/%s/hwmon*/temp1_input", entry->d_name);
+            
+            glob_t glob_result;
+            if (glob(hwmon_path, GLOB_NOSORT, NULL, &glob_result) == 0) {
+                for (size_t j = 0; j < glob_result.gl_pathc; j++) {
+                    temp = read_temperature_file(glob_result.gl_pathv[j]);
+                    if (temp >= 0) {
+                        globfree(&glob_result);
+                        closedir(dir);
+                        return temp;
+                    }
+                }
+                globfree(&glob_result);
+            }
+        }
+        closedir(dir);
+    }
+    
+    return -1.0;
+}
+
 void find_storage_devices() {
     DIR *dir = opendir("/sys/class/hwmon");
     if (!dir) return;
@@ -182,7 +292,9 @@ void find_storage_devices() {
 
         char devname[64];
         if (fscanf(f, "%63s", devname) == 1) {
-            if (strstr(devname, "nvme") || strstr(devname, "drivetemp")) {
+            if (strstr(devname, "nvme") || strstr(devname, "drivetemp") || 
+                strstr(devname, "sata") || strstr(devname, "SATA") ||
+                strstr(devname, "ssd") || strstr(devname, "SSD")) {
                 // Try to get the parent device name (e.g., nvme0)
                 char device_path[256];
                 snprintf(device_path, sizeof(device_path), "/sys/class/hwmon/%s/device", entry->d_name);
@@ -242,13 +354,13 @@ int main() {
     
     find_storage_devices();
 
-    printf("CPU, GPU, VRM, Chipset, Motherboard, and Storage Temperature Monitor - Press Ctrl+C to exit\n");
-    printf("Time          CPU Temp (°C)   GPU Temp (°C)   VRM Temp (°C)   Chipset Temp (°C)   Motherboard Temp (°C)");
+    printf("CPU, GPU, VRM, Chipset, Motherboard, PSU, and Storage Temperature Monitor - Press Ctrl+C to exit\n");
+    printf("Time          CPU Temp (°C)   GPU Temp (°C)   VRM Temp (°C)   Chipset Temp (°C)   Motherboard Temp (°C)   PSU Temp (°C)");
     for (int i = 0; i < storage_device_count; i++) {
         printf("   %s Temp (°C)", storage_devices[i].name);
     }
     printf("\n");
-    printf("------------------------------------------------------------------------------------------------------");
+    printf("----------------------------------------------------------------------------------------------------------------------");
     for (int i = 0; i < storage_device_count; i++) {
         printf("----------------");
     }
@@ -260,6 +372,7 @@ int main() {
         float vrm_temp = get_vrm_temperature();
         float chipset_temp = get_chipset_temperature();
         float motherboard_temp = get_motherboard_temperature();
+        float psu_temp = get_psu_temperature();
         
         print_timestamp();
         
@@ -293,9 +406,16 @@ int main() {
         
         // Print Motherboard temperature
         if (motherboard_temp >= 0) {
-            printf("%12.1f°C", motherboard_temp);
+            printf("%17.1f°C      ", motherboard_temp);
         } else {
-            printf("     N/A");
+            printf("     N/A      ");
+        }
+        
+        // Print PSU temperature
+        if (psu_temp >= 0) {
+            printf("%11.1f°C", psu_temp);
+        } else {
+            printf("     N/A  ");
         }
 
         // Print individual Storage Devices temperature
