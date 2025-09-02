@@ -558,8 +558,8 @@ int main() {
         // List each running process
         DIR *dir = opendir("/proc");
         if (dir) {
-            printf("\n%-30s\n", "Processes");
-            printf("------------------------------\n");
+            printf("\n%-30s %-10s\n", "Processes", "PID");
+            printf("-------------------------------------------\n");
 
             struct dirent *entry;
             while ((entry = readdir(dir)) != NULL) {
@@ -574,7 +574,7 @@ int main() {
                 char name[256];
                 if (fgets(name, sizeof(name), f)) {
                     name[strcspn(name, "\n")] = '\0'; // strip newline
-                    printf("%-30s\n", name);
+                    printf("%-30s %-10s\n", name, entry->d_name);
                 }
                 fclose(f);
             }
