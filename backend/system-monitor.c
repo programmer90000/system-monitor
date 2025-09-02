@@ -6,6 +6,7 @@
 #include <dirent.h>
 #include <string.h>
 #include <glob.h>
+#include <ctype.h>
 
 volatile sig_atomic_t stop = 0;
 
@@ -552,6 +553,32 @@ int main() {
             float temp = get_storage_temperature(storage_devices[i].path);
             if (temp >= 0) {}
             else {}
+        }
+        
+        // List each running process
+        DIR *dir = opendir("/proc");
+        if (dir) {
+            printf("\n%-30s\n", "Processes");
+            printf("------------------------------\n");
+
+            struct dirent *entry;
+            while ((entry = readdir(dir)) != NULL) {
+                if (!isdigit(entry->d_name[0])) continue;
+
+                char path[256];
+                snprintf(path, sizeof(path), "/proc/%s/comm", entry->d_name);
+
+                FILE *f = fopen(path, "r");
+                if (!f) continue;
+
+                char name[256];
+                if (fgets(name, sizeof(name), f)) {
+                    name[strcspn(name, "\n")] = '\0'; // strip newline
+                    printf("%-30s\n", name);
+                }
+                fclose(f);
+            }
+            closedir(dir);
         }
         
         sleep(1); // Update every second
