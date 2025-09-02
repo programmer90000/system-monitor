@@ -8,6 +8,7 @@
 #include <glob.h>
 #include <ctype.h>
 #include <pthread.h>
+#include <sys/sysinfo.h>
 
 volatile sig_atomic_t stop = 0;
 
@@ -25,6 +26,19 @@ typedef struct {
     float load_5min;
     float load_15min;
 } LoadAverage;
+
+typedef struct {
+    pid_t pid;
+    char name[256];
+    char state;
+    unsigned long utime;
+    unsigned long stime;
+    unsigned long starttime;
+    long rss;
+    long vsz;
+    unsigned long read_bytes;
+    unsigned long write_bytes;
+} ProcessInfo;
 
 StorageDevice *storage_devices = NULL;
 int storage_device_count = 0;
@@ -563,31 +577,103 @@ void *monitor_system(void *arg) {
 }
 
 void list_processes() {
-            // List each running process
-        DIR *dir = opendir("/proc");
-        if (dir) {
-            printf("\n%-30s %-10s\n", "Processes", "PID");
-            printf("-------------------------------------------\n");
+    DIR *dir = opendir("/proc");
+    if (dir) {
+        printf("\n%-20s %-8s %-8s %-10s %-12s %-12s %-12s %-12s\n", 
+               "Process", "PID", "CPU%", "Memory(MB)", "VSZ(MB)", "RSS(MB)", "Read(KB)", "Write(KB)");
+        printf("---------------------------------------------------------------------------------------------------\n");
 
-            struct dirent *entry;
-            while ((entry = readdir(dir)) != NULL) {
-                if (!isdigit(entry->d_name[0])) continue;
+        struct dirent *entry;
+        
+        // Get system uptime for CPU calculation
+        FILE *uptime_file = fopen("/proc/uptime", "r");
+        double uptime_seconds = 0.0;
+        if (uptime_file) {
+            fscanf(uptime_file, "%lf", &uptime_seconds);
+            fclose(uptime_file);
+        }
 
-                char path[256];
-                snprintf(path, sizeof(path), "/proc/%s/comm", entry->d_name);
+        while ((entry = readdir(dir)) != NULL) {
+            if (!isdigit(entry->d_name[0])) continue;
 
-                FILE *f = fopen(path, "r");
-                if (!f) continue;
+            char path[256];
+            pid_t pid = atoi(entry->d_name);
+            
+            // Get process name
+            snprintf(path, sizeof(path), "/proc/%s/comm", entry->d_name);
+            FILE *f = fopen(path, "r");
+            if (!f) continue;
+            
+            char name[256];
+            if (!fgets(name, sizeof(name), f)) {
+                fclose(f);
+                continue;
+            }
+            name[strcspn(name, "\n")] = '\0';
+            fclose(f);
 
-                char name[256];
-                if (fgets(name, sizeof(name), f)) {
-                    name[strcspn(name, "\n")] = '\0'; // strip newline
-                    printf("%-30s %-10s\n", name, entry->d_name);
+            ProcessInfo proc;
+            proc.pid = pid;
+            strncpy(proc.name, name, sizeof(proc.name));
+            proc.read_bytes = 0;
+            proc.write_bytes = 0;
+
+            // Read process statistics
+            snprintf(path, sizeof(path), "/proc/%s/stat", entry->d_name);
+            f = fopen(path, "r");
+            if (!f) continue;
+
+            fscanf(f, "%*d %*s %*c %*d %*d %*d %*d %*d %*u %*u %*u %*u %*u %lu %lu %*d %*d %*d %*d %*d %*d %*u %lu", 
+                   &proc.utime, &proc.stime, &proc.starttime);
+            fclose(f);
+
+            // Read memory information
+            snprintf(path, sizeof(path), "/proc/%s/statm", entry->d_name);
+            f = fopen(path, "r");
+            if (f) {
+                fscanf(f, "%ld %ld", &proc.vsz, &proc.rss);
+                fclose(f);
+            }
+
+            // Read I/O statistics (if available)
+            snprintf(path, sizeof(path), "/proc/%s/io", entry->d_name);
+            f = fopen(path, "r");
+            if (f) {
+                char line[128];
+                while (fgets(line, sizeof(line), f)) {
+                    if (strstr(line, "read_bytes:")) {
+                        sscanf(line, "read_bytes: %lu", &proc.read_bytes);
+                    } else if (strstr(line, "write_bytes:")) {
+                        sscanf(line, "write_bytes: %lu", &proc.write_bytes);
+                    }
                 }
                 fclose(f);
             }
-            closedir(dir);
+
+            // Calculate CPU usage percentage
+            unsigned long total_time = proc.utime + proc.stime;
+            double seconds = uptime_seconds - (proc.starttime / sysconf(_SC_CLK_TCK));
+            double cpu_usage = 0.0;
+            
+            if (seconds > 0) {
+                cpu_usage = 100.0 * ((total_time / sysconf(_SC_CLK_TCK)) / seconds);
+                if (cpu_usage > 100.0) cpu_usage = 100.0; // Cap at 100%
+            }
+
+            // Convert memory to MB
+            double memory_mb = (proc.rss * 4) / 1024.0;
+            double vsz_mb = (proc.vsz * 4) / 1024.0;
+            double rss_mb = (proc.rss * 4) / 1024.0;
+            
+            // Convert I/O to KB
+            double read_kb = proc.read_bytes / 1024.0;
+            double write_kb = proc.write_bytes / 1024.0;
+
+            printf("%-20.20s %-8d %-8.1f %-10.1f %-12.1f %-12.1f %-12.0f %-12.0f\n", 
+                   proc.name, proc.pid, cpu_usage, memory_mb, vsz_mb, rss_mb, read_kb, write_kb);
         }
+        closedir(dir);
+    }
 }
 
 void *process_thread(void *arg) {
