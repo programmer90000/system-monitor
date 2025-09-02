@@ -7,6 +7,7 @@
 #include <string.h>
 #include <glob.h>
 #include <ctype.h>
+#include <pthread.h>
 
 volatile sig_atomic_t stop = 0;
 
@@ -479,7 +480,7 @@ void print_timestamp() {
     struct tm *t = localtime(&now);
 }
 
-void monitor_system() {
+void *monitor_system(void *arg) {
     find_storage_devices();
 
     for (int i = 0; i < storage_device_count; i++) {
@@ -589,12 +590,26 @@ void list_processes() {
         }
 }
 
+void *process_thread(void *arg) {
+    while (!stop) {
+        list_processes();
+        sleep(5); // Update every 5 seconds
+    }
+    return NULL;
+}
+
 int main() {
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
 
-    monitor_system();
-    list_processes();
+    pthread_t monitor_tid, process_tid;
+
+    pthread_create(&monitor_tid, NULL, monitor_system, NULL);
+    pthread_create(&process_tid, NULL, process_thread, NULL);
+
+    pthread_join(monitor_tid, NULL);
+    pthread_join(process_tid, NULL);
+
     
     return 0;
 }
