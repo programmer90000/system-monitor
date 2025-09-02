@@ -476,7 +476,6 @@ float get_storage_temperature(const char *path) {
 void print_timestamp() {
     time_t now = time(NULL);
     struct tm *t = localtime(&now);
-    printf("[%02d:%02d:%02d] ", t->tm_hour, t->tm_min, t->tm_sec);
 }
 
 int main() {
@@ -485,17 +484,10 @@ int main() {
     
     find_storage_devices();
 
-    printf("CPU Usage, Load Average, CPU, GPU, VRM, Chipset, Motherboard, PSU, Case and Storage Temperature Monitor - Press Ctrl+C to exit\n\n");
-    printf("Time          CPU Usage (%%)   Load (1/5/15min)    CPU Temp (°C)   GPU Temp (°C)   VRM Temp (°C)   Chipset Temp (°C)   Motherboard Temp (°C)   PSU Temp (°C)   Case Temp (°C)");
     for (int i = 0; i < storage_device_count; i++) {
-        printf("   %s Temp (°C)", storage_devices[i].name);
     }
-    printf("\n");
-    printf("--------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
     for (int i = 0; i < storage_device_count; i++) {
-        printf("----------------");
     }
-    printf("\n");
 
     while (!stop) {
         float cpu_usage = get_cpu_usage();
@@ -512,81 +504,61 @@ int main() {
         
         // Print CPU usage
         if (cpu_usage >= 0) {
-            printf("  %4.1f%%      ", cpu_usage);
         } else {
-            printf("     N/A       ");
         }
         
         // Print Load averages
         if (load.load_1min >= 0 && load.load_5min >= 0 && load.load_15min >= 0) {
-            printf("  %8.2f/%4.2f/%4.2f      ", load.load_1min, load.load_5min, load.load_15min);
         } else {
-            printf("     N/A/N/A/N/A      ");
         }
         
         // Print CPU temperature
         if (cpu_temp >= 0) {
-            printf("%2.1f°C      ", cpu_temp);
         } else {
-            printf("     N/A       ");
         }
         
         // Print GPU temperature
         if (gpu_temp >= 0) {
-            printf("%8.1f°C      ", gpu_temp);
         } else {
-            printf("     N/A      ");
         }
         
         // Print VRM temperature
         if (vrm_temp >= 0) {
-            printf("%8.1f°C      ", vrm_temp);
         } else {
-            printf("     N/A      ");
         }
         
         // Print Chipset temperature
         if (chipset_temp >= 0) {
-            printf("%8.1f°C      ", chipset_temp);
         } else {
-            printf("     N/A      ");
         }
         
         // Print Motherboard temperature
         if (motherboard_temp >= 0) {
-            printf("%12.1f°C      ", motherboard_temp);
         } else {
-            printf("     N/A      ");
         }
         
         // Print PSU temperature
         if (psu_temp >= 0) {
-            printf("%16.1f°C", psu_temp);
         } else {
-            printf("     N/A  ");
         }
 
         // Print Case temperature
         if (case_temp >= 0) {
-            printf("%14.1f°C", case_temp);
         } else {
-            printf("     N/A  ");
         }
 
         // Print individual Storage Devices temperature
         for (int i = 0; i < storage_device_count; i++) {
             float temp = get_storage_temperature(storage_devices[i].path);
-            if (temp >= 0) printf("   %12.1f°C", temp);
-            else printf("     N/A");
+            if (temp >= 0) {}
+            else {}
         }
         
-        printf("\n");
         sleep(1); // Update every second
     }
     
     // Free allocated memory
     free(storage_devices);
     
-    printf("\nMonitoring stopped.\n");
     return 0;
 }
