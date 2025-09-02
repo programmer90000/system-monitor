@@ -552,7 +552,17 @@ void monitor_system() {
             else {}
         }
         
-        // List each running process
+
+        
+        sleep(1); // Update every second
+    }
+    
+    // Free allocated memory
+    free(storage_devices);
+}
+
+void list_processes() {
+            // List each running process
         DIR *dir = opendir("/proc");
         if (dir) {
             printf("\n%-30s %-10s\n", "Processes", "PID");
@@ -577,12 +587,6 @@ void monitor_system() {
             }
             closedir(dir);
         }
-        
-        sleep(1); // Update every second
-    }
-    
-    // Free allocated memory
-    free(storage_devices);
 }
 
 int main() {
@@ -590,6 +594,7 @@ int main() {
     signal(SIGTERM, handle_signal);
 
     monitor_system();
+    list_processes();
     
     return 0;
 }
