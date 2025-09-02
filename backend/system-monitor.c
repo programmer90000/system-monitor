@@ -479,10 +479,7 @@ void print_timestamp() {
     struct tm *t = localtime(&now);
 }
 
-int main() {
-    signal(SIGINT, handle_signal);
-    signal(SIGTERM, handle_signal);
-    
+void monitor_system() {
     find_storage_devices();
 
     for (int i = 0; i < storage_device_count; i++) {
@@ -586,6 +583,13 @@ int main() {
     
     // Free allocated memory
     free(storage_devices);
+}
+
+int main() {
+    signal(SIGINT, handle_signal);
+    signal(SIGTERM, handle_signal);
+
+    monitor_system();
     
     return 0;
 }
