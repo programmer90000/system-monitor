@@ -49,6 +49,11 @@ typedef struct ProcessNode {
     struct ProcessNode* next;
 } ProcessNode;
 
+typedef struct ProcSample {
+    pid_t pid;
+    unsigned long utime, stime;
+} ProcSample;
+
 StorageDevice *storage_devices = NULL;
 int storage_device_count = 0;
 
@@ -585,29 +590,68 @@ void *monitor_system(void *arg) {
     free(storage_devices);
 }
 
+static long get_total_jiffies() {
+    FILE *f = fopen("/proc/stat", "r");
+    if (!f) return -1;
+    char cpu[16];
+    long user, nice, system, idle, iowait, irq, softirq, steal;
+    fscanf(f, "%s %ld %ld %ld %ld %ld %ld %ld %ld",
+           cpu, &user, &nice, &system, &idle, &iowait, &irq, &softirq, &steal);
+    fclose(f);
+    return user + nice + system + idle + iowait + irq + softirq + steal;
+}
+
+static void read_process_stat(pid_t pid, unsigned long *utime, unsigned long *stime, long *rss) {
+    char path[256];
+    snprintf(path, sizeof(path), "/proc/%d/stat", pid);
+    FILE *f = fopen(path, "r");
+    if (!f) { *utime = *stime = 0; *rss = 0; return; }
+
+    int p;
+    char comm[256], state;
+    unsigned long tmp;
+    fscanf(f, "%d %s %c", &p, comm, &state);
+    for (int i = 0; i < 11; i++) fscanf(f, "%lu", &tmp);
+    fscanf(f, "%lu %lu", utime, stime);
+    for (int i = 0; i < 7; i++) fscanf(f, "%lu", &tmp);
+    fscanf(f, "%ld", rss);
+    fclose(f);
+}
+
+static void read_process_io(pid_t pid, unsigned long *read_bytes, unsigned long *write_bytes) {
+    char path[256];
+    snprintf(path, sizeof(path), "/proc/%d/io", pid);
+    FILE *f = fopen(path, "r");
+    *read_bytes = *write_bytes = 0;
+    if (!f) return;
+    char key[64];
+    unsigned long val;
+    while (fscanf(f, "%63s %lu", key, &val) == 2) {
+        if (strcmp(key, "read_bytes:") == 0) *read_bytes = val;
+        if (strcmp(key, "write_bytes:") == 0) *write_bytes = val;
+    }
+    fclose(f);
+}
+
 void list_processes() {
-    // Create a table to store processes by PID
+    long page_size = sysconf(_SC_PAGESIZE);
+    int ncpu = sysconf(_SC_NPROCESSORS_ONLN);
+
     ProcessNode* process_table[32768] = {NULL};
     ProcessNode* root = NULL;
     DIR *dir;
     struct dirent *entry;
-    int process_count = 0;
 
-    // Open /proc directory
     dir = opendir("/proc");
     if (!dir) {
-        perror("opendir");
         return;
     }
 
-    // First pass: collect all process information
     while ((entry = readdir(dir)) != NULL) {
         if (!isdigit(entry->d_name[0])) continue;
-
-        char path[256];
         pid_t pid = atoi(entry->d_name);
 
-        // Get process name from comm
+        char path[256];
         snprintf(path, sizeof(path), "/proc/%s/comm", entry->d_name);
         FILE *f = fopen(path, "r");
         if (!f) continue;
@@ -620,7 +664,6 @@ void list_processes() {
         fclose(f);
         name[strcspn(name, "\n")] = '\0';
 
-        // Get parent PID from status
         pid_t ppid = 0;
         snprintf(path, sizeof(path), "/proc/%s/status", entry->d_name);
         f = fopen(path, "r");
@@ -635,10 +678,7 @@ void list_processes() {
             fclose(f);
         }
 
-        // Create process node
         ProcessNode* node = (ProcessNode*)malloc(sizeof(ProcessNode));
-        if (!node) continue;
-        
         node->pid = pid;
         node->ppid = ppid;
         strncpy(node->name, name, sizeof(node->name) - 1);
@@ -646,48 +686,80 @@ void list_processes() {
         node->children = NULL;
         node->next = NULL;
 
-        // Store in process table
         if (pid < 32768) {
             process_table[pid] = node;
         }
-        process_count++;
     }
     closedir(dir);
 
-    // Second pass: build the tree structure
     for (int i = 0; i < 32768; i++) {
-        if (process_table[i] == NULL) continue;
-        
+        if (!process_table[i]) continue;
         ProcessNode* child = process_table[i];
         pid_t parent_pid = child->ppid;
-
-        // Find the parent node and add child to it
-        if (parent_pid > 0 && parent_pid < 32768 && process_table[parent_pid] != NULL) {
-            ProcessNode* parent = process_table[parent_pid];
-            // Add child to the front of parent's children list
-            child->next = parent->children;
-            parent->children = child;
+        if (parent_pid > 0 && parent_pid < 32768 && process_table[parent_pid]) {
+            child->next = process_table[parent_pid]->children;
+            process_table[parent_pid]->children = child;
         } else if (child->pid == 1) {
-            // This is the root process (init/systemd)
             root = child;
         }
     }
 
-    // Recursive function to print the tree
+    // === snapshot 1 ===
+    long total1 = get_total_jiffies();
+    ProcSample samples[32768] = {0};
+
+    for (int i = 0; i < 32768; i++) {
+        if (!process_table[i]) continue;
+        unsigned long ut, st;
+        long rss;
+        read_process_stat(i, &ut, &st, &rss);
+        samples[i].pid = i;
+        samples[i].utime = ut;
+        samples[i].stime = st;
+    }
+
+    usleep(200000); // 200ms
+
+    // === snapshot 2 ===
+    long total2 = get_total_jiffies();
+    long total_diff = total2 - total1;
+
+    // recursive print
     void print_tree(ProcessNode* node, int depth) {
         if (!node) return;
-        
-        // Print indentation
-        for (int i = 0; i < depth; i++) printf("----");
-        printf(" %s (%d)\n", node->name, node->pid);
-        
-        // Print children recursively
+        unsigned long ut, st, rb, wb;
+        long rss;
+        read_process_stat(node->pid, &ut, &st, &rss);
+        read_process_io(node->pid, &rb, &wb);
+
+        double cpu_percent = 0.0;
+        if (samples[node->pid].pid == node->pid) {
+            unsigned long du = ut - samples[node->pid].utime;
+            unsigned long ds = st - samples[node->pid].stime;
+            cpu_percent = ((double)(du + ds) / (double)total_diff) * 100.0 * ncpu;
+        }
+
+        for (int i = 0; i < depth; i++) printf("  ");
+        printf("%-20s PID=%-5d CPU=%5.2f%% MEM=%-8ldKB IO[R=%-8lu W=%-8lu\n",
+               node->name,
+               node->pid,
+               cpu_percent,
+               (rss * page_size) / 1024,
+               rb,
+               wb);
+
         print_tree(node->children, depth + 1);
-        // Print siblings
         print_tree(node->next, depth);
     }
 
-    // Recursive function to free memory
+    printf("Processes (tree view)\n");
+    printf("-----------------------------------------------------------------\n");
+    printf("Main Debian System\n");
+    if (root) print_tree(root, 0);
+    else printf("[Error: root process not found]\n");
+    printf("=================================================================\n");
+
+    // cleanup
     void free_tree(ProcessNode* node) {
         if (!node) return;
         free_tree(node->children);
@@ -695,24 +767,11 @@ void list_processes() {
         free(node);
     }
 
-    // Print the process tree
-    printf("Main Debian System\n");
     if (root) {
-        print_tree(root, 0);
-    } else {
-        printf("Error: Could not find root process\n");
-    }
-
-    // Clean up memory
-    for (int i = 0; i < 32768; i++) {
-        if (process_table[i] != NULL) {
-            // Only free root nodes to avoid double-free
-            if (process_table[i] == root || process_table[i]->ppid == 0) {
-                free_tree(process_table[i]);
-            }
-        }
+        free_tree(root);
     }
 }
+
 
 void *process_thread(void *arg) {
     while (!stop) {
