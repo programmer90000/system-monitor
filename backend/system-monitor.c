@@ -9,6 +9,7 @@
 #include <ctype.h>
 #include <pthread.h>
 #include <sys/sysinfo.h>
+#include <sys/types.h>
 
 volatile sig_atomic_t stop = 0;
 
@@ -39,6 +40,14 @@ typedef struct {
     unsigned long read_bytes;
     unsigned long write_bytes;
 } ProcessInfo;
+
+typedef struct ProcessNode {
+    pid_t pid;
+    pid_t ppid;
+    char name[256];
+    struct ProcessNode* children;
+    struct ProcessNode* next;
+} ProcessNode;
 
 StorageDevice *storage_devices = NULL;
 int storage_device_count = 0;
@@ -577,102 +586,131 @@ void *monitor_system(void *arg) {
 }
 
 void list_processes() {
-    DIR *dir = opendir("/proc");
-    if (dir) {
-        printf("\n%-20s %-8s %-8s %-10s %-12s %-12s %-12s %-12s\n", 
-               "Process", "PID", "CPU%", "Memory(MB)", "VSZ(MB)", "RSS(MB)", "Read(KB)", "Write(KB)");
-        printf("---------------------------------------------------------------------------------------------------\n");
+    // Create a table to store processes by PID
+    ProcessNode* process_table[32768] = {NULL};
+    ProcessNode* root = NULL;
+    DIR *dir;
+    struct dirent *entry;
+    int process_count = 0;
 
-        struct dirent *entry;
-        
-        // Get system uptime for CPU calculation
-        FILE *uptime_file = fopen("/proc/uptime", "r");
-        double uptime_seconds = 0.0;
-        if (uptime_file) {
-            fscanf(uptime_file, "%lf", &uptime_seconds);
-            fclose(uptime_file);
+    // Open /proc directory
+    dir = opendir("/proc");
+    if (!dir) {
+        perror("opendir");
+        return;
+    }
+
+    // First pass: collect all process information
+    while ((entry = readdir(dir)) != NULL) {
+        if (!isdigit(entry->d_name[0])) continue;
+
+        char path[256];
+        pid_t pid = atoi(entry->d_name);
+
+        // Get process name from comm
+        snprintf(path, sizeof(path), "/proc/%s/comm", entry->d_name);
+        FILE *f = fopen(path, "r");
+        if (!f) continue;
+
+        char name[256];
+        if (!fgets(name, sizeof(name), f)) {
+            fclose(f);
+            continue;
         }
+        fclose(f);
+        name[strcspn(name, "\n")] = '\0';
 
-        while ((entry = readdir(dir)) != NULL) {
-            if (!isdigit(entry->d_name[0])) continue;
-
-            char path[256];
-            pid_t pid = atoi(entry->d_name);
-            
-            // Get process name
-            snprintf(path, sizeof(path), "/proc/%s/comm", entry->d_name);
-            FILE *f = fopen(path, "r");
-            if (!f) continue;
-            
-            char name[256];
-            if (!fgets(name, sizeof(name), f)) {
-                fclose(f);
-                continue;
-            }
-            name[strcspn(name, "\n")] = '\0';
-            fclose(f);
-
-            ProcessInfo proc;
-            proc.pid = pid;
-            strncpy(proc.name, name, sizeof(proc.name));
-            proc.read_bytes = 0;
-            proc.write_bytes = 0;
-
-            // Read process statistics
-            snprintf(path, sizeof(path), "/proc/%s/stat", entry->d_name);
-            f = fopen(path, "r");
-            if (!f) continue;
-
-            fscanf(f, "%*d %*s %*c %*d %*d %*d %*d %*d %*u %*u %*u %*u %*u %lu %lu %*d %*d %*d %*d %*d %*d %*u %lu", 
-                   &proc.utime, &proc.stime, &proc.starttime);
-            fclose(f);
-
-            // Read memory information
-            snprintf(path, sizeof(path), "/proc/%s/statm", entry->d_name);
-            f = fopen(path, "r");
-            if (f) {
-                fscanf(f, "%ld %ld", &proc.vsz, &proc.rss);
-                fclose(f);
-            }
-
-            // Read I/O statistics (if available)
-            snprintf(path, sizeof(path), "/proc/%s/io", entry->d_name);
-            f = fopen(path, "r");
-            if (f) {
-                char line[128];
-                while (fgets(line, sizeof(line), f)) {
-                    if (strstr(line, "read_bytes:")) {
-                        sscanf(line, "read_bytes: %lu", &proc.read_bytes);
-                    } else if (strstr(line, "write_bytes:")) {
-                        sscanf(line, "write_bytes: %lu", &proc.write_bytes);
-                    }
+        // Get parent PID from status
+        pid_t ppid = 0;
+        snprintf(path, sizeof(path), "/proc/%s/status", entry->d_name);
+        f = fopen(path, "r");
+        if (f) {
+            char line[128];
+            while (fgets(line, sizeof(line), f)) {
+                if (strncmp(line, "PPid:", 5) == 0) {
+                    ppid = atoi(line + 5);
+                    break;
                 }
-                fclose(f);
             }
-
-            // Calculate CPU usage percentage
-            unsigned long total_time = proc.utime + proc.stime;
-            double seconds = uptime_seconds - (proc.starttime / sysconf(_SC_CLK_TCK));
-            double cpu_usage = 0.0;
-            
-            if (seconds > 0) {
-                cpu_usage = 100.0 * ((total_time / sysconf(_SC_CLK_TCK)) / seconds);
-                if (cpu_usage > 100.0) cpu_usage = 100.0; // Cap at 100%
-            }
-
-            // Convert memory to MB
-            double memory_mb = (proc.rss * 4) / 1024.0;
-            double vsz_mb = (proc.vsz * 4) / 1024.0;
-            double rss_mb = (proc.rss * 4) / 1024.0;
-            
-            // Convert I/O to KB
-            double read_kb = proc.read_bytes / 1024.0;
-            double write_kb = proc.write_bytes / 1024.0;
-
-            printf("%-20.20s %-8d %-8.1f %-10.1f %-12.1f %-12.1f %-12.0f %-12.0f\n", 
-                   proc.name, proc.pid, cpu_usage, memory_mb, vsz_mb, rss_mb, read_kb, write_kb);
+            fclose(f);
         }
-        closedir(dir);
+
+        // Create process node
+        ProcessNode* node = (ProcessNode*)malloc(sizeof(ProcessNode));
+        if (!node) continue;
+        
+        node->pid = pid;
+        node->ppid = ppid;
+        strncpy(node->name, name, sizeof(node->name) - 1);
+        node->name[sizeof(node->name) - 1] = '\0';
+        node->children = NULL;
+        node->next = NULL;
+
+        // Store in process table
+        if (pid < 32768) {
+            process_table[pid] = node;
+        }
+        process_count++;
+    }
+    closedir(dir);
+
+    // Second pass: build the tree structure
+    for (int i = 0; i < 32768; i++) {
+        if (process_table[i] == NULL) continue;
+        
+        ProcessNode* child = process_table[i];
+        pid_t parent_pid = child->ppid;
+
+        // Find the parent node and add child to it
+        if (parent_pid > 0 && parent_pid < 32768 && process_table[parent_pid] != NULL) {
+            ProcessNode* parent = process_table[parent_pid];
+            // Add child to the front of parent's children list
+            child->next = parent->children;
+            parent->children = child;
+        } else if (child->pid == 1) {
+            // This is the root process (init/systemd)
+            root = child;
+        }
+    }
+
+    // Recursive function to print the tree
+    void print_tree(ProcessNode* node, int depth) {
+        if (!node) return;
+        
+        // Print indentation
+        for (int i = 0; i < depth; i++) printf("----");
+        printf(" %s (%d)\n", node->name, node->pid);
+        
+        // Print children recursively
+        print_tree(node->children, depth + 1);
+        // Print siblings
+        print_tree(node->next, depth);
+    }
+
+    // Recursive function to free memory
+    void free_tree(ProcessNode* node) {
+        if (!node) return;
+        free_tree(node->children);
+        free_tree(node->next);
+        free(node);
+    }
+
+    // Print the process tree
+    printf("Main Debian System\n");
+    if (root) {
+        print_tree(root, 0);
+    } else {
+        printf("Error: Could not find root process\n");
+    }
+
+    // Clean up memory
+    for (int i = 0; i < 32768; i++) {
+        if (process_table[i] != NULL) {
+            // Only free root nodes to avoid double-free
+            if (process_table[i] == root || process_table[i]->ppid == 0) {
+                free_tree(process_table[i]);
+            }
+        }
     }
 }
 
