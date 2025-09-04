@@ -792,13 +792,20 @@ void display_history_row(const char *label, HistoryBuffer buffer, const char *fo
     printf(" ║");
 }
 
+int calculate_total_rows() {
+    int rows = 12; // Base rows (CPU usage, loads, temps, process count)
+    rows += system_history.storage_count; // Storage devices
+    rows += cpu_data.total_cores; // All cores
+    return rows;
+}
+
 void update_display() {
     static int first_display = 1;
     static int total_rows = 0;
     
     if (first_display) {
         display_table_header();
-        total_rows = 12 + system_history.storage_count; // Base rows + storage devices
+        total_rows = calculate_total_rows();
         first_display = 0;
     }
     
@@ -825,15 +832,14 @@ void update_display() {
     display_history_row("Process Count", system_history.total_processes, "%6.0f", row++);
     
     // Storage temperatures
-    for (int i = 0; i < system_history.storage_count && i < 3; i++) {
+    for (int i = 0; i < system_history.storage_count; i++) {
         char label[32];
         snprintf(label, sizeof(label), "Storage %d Temp", i);
         display_history_row(label, system_history.storage_temps[i], "%6.1f", row++);
     }
     
-    // Core usage (show first few cores)
-    int cores_to_show = cpu_data.total_cores < 3 ? cpu_data.total_cores : 3;
-    for (int i = 1; i <= cores_to_show; i++) {
+    // Core usage
+    for (int i = 1; i <= cpu_data.total_cores; i++) {
         char label[32];
         snprintf(label, sizeof(label), "Core %s", cpu_data.cores[i].cpu_name);
         display_history_row(label, system_history.core_usage[i], "%5.1f%%", row++);
