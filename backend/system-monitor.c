@@ -80,9 +80,87 @@ typedef struct {
     double overall_usage;
 } CPUData;
 
+// History tracking
+#define HISTORY_SIZE 10
+
+typedef struct {
+    float values[HISTORY_SIZE];
+    int index;
+    int count;
+} HistoryBuffer;
+
+typedef struct {
+    HistoryBuffer cpu_usage;
+    HistoryBuffer load_1min;
+    HistoryBuffer load_5min;
+    HistoryBuffer load_15min;
+    HistoryBuffer cpu_temp;
+    HistoryBuffer gpu_temp;
+    HistoryBuffer vrm_temp;
+    HistoryBuffer chipset_temp;
+    HistoryBuffer motherboard_temp;
+    HistoryBuffer psu_temp;
+    HistoryBuffer case_temp;
+    HistoryBuffer storage_temps[16];
+    HistoryBuffer core_usage[MAX_CORES];
+    HistoryBuffer total_processes;
+    int storage_count;
+} SystemHistory;
+
 StorageDevice *storage_devices = NULL;
 int storage_device_count = 0;
 CPUData cpu_data;
+SystemHistory system_history;
+
+// History buffer functions
+void init_history_buffer(HistoryBuffer *buffer) {
+    memset(buffer->values, 0, sizeof(buffer->values));
+    buffer->index = 0;
+    buffer->count = 0;
+}
+
+void add_to_history(HistoryBuffer *buffer, float value) {
+    buffer->values[buffer->index] = value;
+    buffer->index = (buffer->index + 1) % HISTORY_SIZE;
+    if (buffer->count < HISTORY_SIZE) {
+        buffer->count++;
+    }
+}
+
+float get_history_average(HistoryBuffer *buffer) {
+    if (buffer->count == 0) return 0.0;
+    
+    float sum = 0.0;
+    for (int i = 0; i < buffer->count; i++) {
+        sum += buffer->values[i];
+    }
+    return sum / buffer->count;
+}
+
+void init_system_history() {
+    init_history_buffer(&system_history.cpu_usage);
+    init_history_buffer(&system_history.load_1min);
+    init_history_buffer(&system_history.load_5min);
+    init_history_buffer(&system_history.load_15min);
+    init_history_buffer(&system_history.cpu_temp);
+    init_history_buffer(&system_history.gpu_temp);
+    init_history_buffer(&system_history.vrm_temp);
+    init_history_buffer(&system_history.chipset_temp);
+    init_history_buffer(&system_history.motherboard_temp);
+    init_history_buffer(&system_history.psu_temp);
+    init_history_buffer(&system_history.case_temp);
+    init_history_buffer(&system_history.total_processes);
+    
+    for (int i = 0; i < MAX_CORES; i++) {
+        init_history_buffer(&system_history.core_usage[i]);
+    }
+    
+    for (int i = 0; i < 16; i++) {
+        init_history_buffer(&system_history.storage_temps[i]);
+    }
+    
+    system_history.storage_count = 0;
+}
 
 float read_temperature_file(const char *filename) {
     FILE *file = fopen(filename, "r");
@@ -219,49 +297,6 @@ void calculate_cpu_usage(CPUData *cpu_data) {
 
     // Overall usage is the first core (cpu, not cpu0, cpu1, etc.)
     cpu_data->overall_usage = cpu_data->cores[0].usage;
-}
-
-// Function to display CPU usage table
-void display_cpu_table(CPUData *cpu_data) {
-    // Clear screen and move cursor to top
-    printf("\033[2J\033[H");
-    
-    printf("╔══════════════════════════════════════════════════╗\n");
-    printf("║                 CPU USAGE MONITOR                ║\n");
-    printf("╠═══════════════╦══════════════════════════════════╣\n");
-    printf("║     CPU       ║           USAGE %%                ║\n");
-    printf("╠═══════════════╬══════════════════════════════════╣\n");
-    
-    // Display overall CPU usage
-    printf("║ %-13s ║", "Overall");
-    
-    int overall_bars = (int)(cpu_data->overall_usage / 3.33);
-    if (overall_bars > 30) overall_bars = 30;
-    if (overall_bars < 0) overall_bars = 0;
-    
-    for (int j = 0; j < 30; j++) {
-        printf(j < overall_bars ? "█" : " ");
-    }
-    printf(" %5.1f%% ║\n", cpu_data->overall_usage);
-    
-    printf("╠═══════════════╬══════════════════════════════════╣\n");
-    
-    // Display individual core usage (start from 1, since 0 is the overall)
-    for (int i = 1; i <= cpu_data->total_cores; i++) {
-        printf("║ %-13s ║", cpu_data->cores[i].cpu_name);
-        
-        int bars = (int)(cpu_data->cores[i].usage / 3.33);
-        if (bars > 30) bars = 30;
-        if (bars < 0) bars = 0;
-        
-        for (int j = 0; j < 30; j++) {
-            printf(j < bars ? "█" : " ");
-        }
-        printf(" %5.1f%% ║\n", cpu_data->cores[i].usage);
-    }
-    
-    printf("╚═══════════════╩══════════════════════════════════╝\n");
-    printf("\nPress Ctrl+C to exit...\n");
 }
 
 float get_cpu_usage() {
@@ -677,19 +712,147 @@ float get_storage_temperature(const char *path) {
     return read_temperature_file(path);
 }
 
-void print_timestamp() {
-    time_t now = time(NULL);
-    struct tm *t = localtime(&now);
+int get_process_count() {
+    DIR *dir = opendir("/proc");
+    if (!dir) return -1;
+    
+    int count = 0;
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL) {
+        if (isdigit(entry->d_name[0])) {
+            count++;
+        }
+    }
+    closedir(dir);
+    return count;
+}
+
+void display_table_header() {
+    printf("\033[2J\033[H"); // Clear screen and move to top
+    printf("╔══════════════════════════════════════════════════════════════════════════════════════════════════════════╗\n");
+    printf("║                                        COMPREHENSIVE SYSTEM MONITOR                                      ║\n");
+    printf("╠══════════════════════════════════════════════════════════════════════════════════════════════════════════╣\n");
+    printf("║ %-20s ║ Current ║  Avg   ║                  History (Most Recent → Oldest)                  ║\n", "Metric");
+    printf("╠═══════════════════════════╬═════════╬════════╬═════════════════════════════════════════════════════════╣\n");
+}
+
+void display_table_footer() {
+    printf("╚═══════════════════════════╩═════════╩════════╩═════════════════════════════════════════════════════════╝\n");
+    printf("Press Ctrl+C to exit - Update interval: 1 second - History: 10 samples\n");
+}
+
+void display_history_row(const char *label, HistoryBuffer buffer, const char *format, int row) {
+    // Move cursor to the correct row
+    printf("\033[%d;1H", 6 + row);
+    
+    // Clear the entire line
+    printf("\033[K");
+    
+    printf("║ %-20s ║ ", label);
+    
+    // Current value
+    if (buffer.count > 0) {
+        float current = buffer.values[(buffer.index - 1 + HISTORY_SIZE) % HISTORY_SIZE];
+        if (current >= 0) {
+            printf(format, current);
+        } else {
+            printf("  N/A  ");
+        }
+    } else {
+        printf("  N/A  ");
+    }
+    
+    printf(" ║ ");
+    
+    // Average
+    if (buffer.count > 0) {
+        float avg = get_history_average(&buffer);
+        if (avg >= 0) {
+            printf(format, avg);
+        } else {
+            printf("  N/A  ");
+        }
+    } else {
+        printf("  N/A  ");
+    }
+    
+    printf(" ║ ");
+    
+    // History values
+    for (int i = 0; i < HISTORY_SIZE; i++) {
+        int hist_index = (buffer.index - 1 - i + HISTORY_SIZE) % HISTORY_SIZE;
+        if (i < buffer.count && buffer.values[hist_index] >= 0) {
+            printf(format, buffer.values[hist_index]);
+        } else {
+            printf("   -   ");
+        }
+        if (i < HISTORY_SIZE - 1) printf(" ");
+    }
+    
+    printf(" ║");
+}
+
+void update_display() {
+    static int first_display = 1;
+    static int total_rows = 0;
+    
+    if (first_display) {
+        display_table_header();
+        total_rows = 12 + system_history.storage_count; // Base rows + storage devices
+        first_display = 0;
+    }
+    
+    int row = 0;
+    
+    // CPU Usage
+    display_history_row("CPU Usage (%)", system_history.cpu_usage, "%5.1f%%", row++);
+    
+    // Load Averages
+    display_history_row("Load 1min", system_history.load_1min, "%6.2f", row++);
+    display_history_row("Load 5min", system_history.load_5min, "%6.2f", row++);
+    display_history_row("Load 15min", system_history.load_15min, "%6.2f", row++);
+    
+    // Temperatures
+    display_history_row("CPU Temp (°C)", system_history.cpu_temp, "%6.1f", row++);
+    display_history_row("GPU Temp (°C)", system_history.gpu_temp, "%6.1f", row++);
+    display_history_row("VRM Temp (°C)", system_history.vrm_temp, "%6.1f", row++);
+    display_history_row("Chipset Temp (°C)", system_history.chipset_temp, "%6.1f", row++);
+    display_history_row("Motherboard Temp (°C)", system_history.motherboard_temp, "%6.1f", row++);
+    display_history_row("PSU Temp (°C)", system_history.psu_temp, "%6.1f", row++);
+    display_history_row("Case Temp (°C)", system_history.case_temp, "%6.1f", row++);
+    
+    // Process count
+    display_history_row("Process Count", system_history.total_processes, "%6.0f", row++);
+    
+    // Storage temperatures
+    for (int i = 0; i < system_history.storage_count && i < 3; i++) {
+        char label[32];
+        snprintf(label, sizeof(label), "Storage %d Temp", i);
+        display_history_row(label, system_history.storage_temps[i], "%6.1f", row++);
+    }
+    
+    // Core usage (show first few cores)
+    int cores_to_show = cpu_data.total_cores < 3 ? cpu_data.total_cores : 3;
+    for (int i = 1; i <= cores_to_show; i++) {
+        char label[32];
+        snprintf(label, sizeof(label), "Core %s", cpu_data.cores[i].cpu_name);
+        display_history_row(label, system_history.core_usage[i], "%5.1f%%", row++);
+    }
+    
+    // Move cursor to the bottom and display footer
+    printf("\033[%d;1H", 6 + total_rows + 1);
+    printf("\033[K");
+    display_table_footer();
+    
+    // Move cursor out of the way
+    printf("\033[%d;1H", 6 + total_rows + 3);
+    fflush(stdout);
 }
 
 void *monitor_system(void *arg) {
     find_storage_devices();
-
-    for (int i = 0; i < storage_device_count; i++) {
-    }
-    for (int i = 0; i < storage_device_count; i++) {
-    }
-
+    init_system_history();
+    
     // Initialize CPU core monitoring
     cpu_data.total_cores = get_core_count();
     if (cpu_data.total_cores <= 0) {
@@ -711,73 +874,46 @@ void *monitor_system(void *arg) {
         float motherboard_temp = get_motherboard_temperature();
         float psu_temp = get_psu_temperature();
         float case_temp = get_case_temperature();
+        int process_count = get_process_count();
         
-        // Read and display CPU core usage
+        // Store in history
+        add_to_history(&system_history.cpu_usage, cpu_usage);
+        add_to_history(&system_history.load_1min, load.load_1min);
+        add_to_history(&system_history.load_5min, load.load_5min);
+        add_to_history(&system_history.load_15min, load.load_15min);
+        add_to_history(&system_history.cpu_temp, cpu_temp);
+        add_to_history(&system_history.gpu_temp, gpu_temp);
+        add_to_history(&system_history.vrm_temp, vrm_temp);
+        add_to_history(&system_history.chipset_temp, chipset_temp);
+        add_to_history(&system_history.motherboard_temp, motherboard_temp);
+        add_to_history(&system_history.psu_temp, psu_temp);
+        add_to_history(&system_history.case_temp, case_temp);
+        add_to_history(&system_history.total_processes, (float)process_count);
+        
+        // Read CPU core usage
         read_cpu_stats(&cpu_data);
         calculate_cpu_usage(&cpu_data);
-        // display_cpu_table(&cpu_data);
         
-        print_timestamp();
-        
-        // Print CPU usage
-        if (cpu_usage >= 0) {
-        } else {
+        // Store core usage history
+        for (int i = 0; i <= cpu_data.total_cores; i++) {
+            add_to_history(&system_history.core_usage[i], cpu_data.cores[i].usage);
         }
         
-        // Print Load averages
-        if (load.load_1min >= 0 && load.load_5min >= 0 && load.load_15min >= 0) {
-        } else {
-        }
-        
-        // Print CPU temperature
-        if (cpu_temp >= 0) {
-        } else {
-        }
-        
-        // Print GPU temperature
-        if (gpu_temp >= 0) {
-        } else {
-        }
-        
-        // Print VRM temperature
-        if (vrm_temp >= 0) {
-        } else {
-        }
-        
-        // Print Chipset temperature
-        if (chipset_temp >= 0) {
-        } else {
-        }
-        
-        // Print Motherboard temperature
-        if (motherboard_temp >= 0) {
-        } else {
-        }
-        
-        // Print PSU temperature
-        if (psu_temp >= 0) {
-        } else {
-        }
-
-        // Print Case temperature
-        if (case_temp >= 0) {
-        } else {
-        }
-
-        // Print individual Storage Devices temperature
-        for (int i = 0; i < storage_device_count; i++) {
+        // Store storage temperatures
+        system_history.storage_count = storage_device_count;
+        for (int i = 0; i < storage_device_count && i < 16; i++) {
             float temp = get_storage_temperature(storage_devices[i].path);
-            if (temp >= 0) {}
-            else {}
+                        add_to_history(&system_history.storage_temps[i], temp);
         }
         
-
+        // Update the display
+        update_display();
         
         sleep(1); // Update every second
     }
     
-    // Free allocated memory
     free(storage_devices);
+    return NULL;
 }
 
 static long get_total_jiffies() {
@@ -955,10 +1091,10 @@ void list_processes() {
     }
 }
 
-
 void *process_thread(void *arg) {
     while (!stop) {
-        list_processes();
+        // Process tree is not displayed in the main table to avoid cluttering
+        // but the process count is already included in the main display
         sleep(5); // Update every 5 seconds
     }
     return NULL;
