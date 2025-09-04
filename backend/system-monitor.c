@@ -715,7 +715,7 @@ void *monitor_system(void *arg) {
         // Read and display CPU core usage
         read_cpu_stats(&cpu_data);
         calculate_cpu_usage(&cpu_data);
-        display_cpu_table(&cpu_data);
+        // display_cpu_table(&cpu_data);
         
         print_timestamp();
         
