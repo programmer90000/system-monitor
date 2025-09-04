@@ -752,13 +752,6 @@ void list_processes() {
         print_tree(node->next, depth);
     }
 
-    printf("Processes (tree view)\n");
-    printf("-----------------------------------------------------------------\n");
-    printf("Main Debian System\n");
-    if (root) print_tree(root, 0);
-    else printf("[Error: root process not found]\n");
-    printf("=================================================================\n");
-
     // cleanup
     void free_tree(ProcessNode* node) {
         if (!node) return;
