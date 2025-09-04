@@ -54,8 +54,35 @@ typedef struct ProcSample {
     unsigned long utime, stime;
 } ProcSample;
 
+// CPU Core Monitoring Structures
+#define MAX_CORES 32
+typedef struct {
+    unsigned long user;
+    unsigned long nice;
+    unsigned long system;
+    unsigned long idle;
+    unsigned long iowait;
+    unsigned long irq;
+    unsigned long softirq;
+    unsigned long steal;
+} CPUStats;
+
+typedef struct {
+    char cpu_name[16];
+    CPUStats stats;
+    CPUStats prev_stats;
+    double usage;
+} CoreData;
+
+typedef struct {
+    int total_cores;
+    CoreData cores[MAX_CORES];
+    double overall_usage;
+} CPUData;
+
 StorageDevice *storage_devices = NULL;
 int storage_device_count = 0;
+CPUData cpu_data;
 
 float read_temperature_file(const char *filename) {
     FILE *file = fopen(filename, "r");
@@ -88,6 +115,153 @@ LoadAverage get_load_average() {
     
     fclose(file);
     return load;
+}
+
+// Function to get core count
+int get_core_count() {
+    FILE *file = fopen("/proc/stat", "r");
+    if (!file) {
+        return -1;
+    }
+
+    char line[256];
+    int count = -1; // Start at -1 to exclude the total 'cpu' line
+
+    while (fgets(line, sizeof(line), file)) {
+        if (strncmp(line, "cpu", 3) == 0) {
+            count++;
+        }
+    }
+
+    fclose(file);
+    return count;
+}
+
+// Function to read CPU stats for all cores
+void read_cpu_stats(CPUData *cpu_data) {
+    FILE *file = fopen("/proc/stat", "r");
+    if (!file) {
+        return;
+    }
+
+    char line[256];
+    int core_count = 0;
+
+    // Store previous stats for calculation (skip if it's the first run)
+    static int first_run = 1;
+    if (!first_run) {
+        for (int i = 0; i <= cpu_data->total_cores; i++) {
+            cpu_data->cores[i].prev_stats = cpu_data->cores[i].stats;
+        }
+    }
+
+    while (fgets(line, sizeof(line), file) && core_count <= cpu_data->total_cores) {
+        if (strncmp(line, "cpu", 3) == 0) {
+            CPUStats stats;
+            char cpu_label[16];
+            
+            int matched = sscanf(line, 
+                "%15s %lu %lu %lu %lu %lu %lu %lu %lu",
+                cpu_label,
+                &stats.user, &stats.nice, &stats.system, &stats.idle,
+                &stats.iowait, &stats.irq, &stats.softirq,
+                &stats.steal);
+
+            if (matched >= 4) {
+                strncpy(cpu_data->cores[core_count].cpu_name, cpu_label, sizeof(cpu_data->cores[core_count].cpu_name));
+                cpu_data->cores[core_count].stats = stats;
+                core_count++;
+            }
+        }
+    }
+
+    fclose(file);
+    
+    if (first_run) {
+        first_run = 0;
+        // For first run, set previous stats equal to current stats
+        for (int i = 0; i <= cpu_data->total_cores; i++) {
+            cpu_data->cores[i].prev_stats = cpu_data->cores[i].stats;
+        }
+    }
+}
+
+// Function to calculate CPU usage for all cores
+void calculate_cpu_usage(CPUData *cpu_data) {
+    for (int i = 0; i <= cpu_data->total_cores; i++) {
+        CPUStats *current = &cpu_data->cores[i].stats;
+        CPUStats *previous = &cpu_data->cores[i].prev_stats;
+
+        unsigned long prev_total = previous->user + previous->nice + previous->system +
+                                 previous->idle + previous->iowait + previous->irq +
+                                 previous->softirq + previous->steal;
+
+        unsigned long current_total = current->user + current->nice + current->system +
+                                    current->idle + current->iowait + current->irq +
+                                    current->softirq + current->steal;
+
+        unsigned long prev_idle = previous->idle + previous->iowait;
+        unsigned long current_idle = current->idle + current->iowait;
+
+        unsigned long total_diff = current_total - prev_total;
+        unsigned long idle_diff = current_idle - prev_idle;
+
+        if (total_diff > 0) {
+            cpu_data->cores[i].usage = 100.0 * (total_diff - idle_diff) / total_diff;
+            
+            // Ensure usage is within bounds
+            if (cpu_data->cores[i].usage < 0.0) cpu_data->cores[i].usage = 0.0;
+            if (cpu_data->cores[i].usage > 100.0) cpu_data->cores[i].usage = 100.0;
+        } else {
+            cpu_data->cores[i].usage = 0.0;
+        }
+    }
+
+    // Overall usage is the first core (cpu, not cpu0, cpu1, etc.)
+    cpu_data->overall_usage = cpu_data->cores[0].usage;
+}
+
+// Function to display CPU usage table
+void display_cpu_table(CPUData *cpu_data) {
+    // Clear screen and move cursor to top
+    printf("\033[2J\033[H");
+    
+    printf("╔══════════════════════════════════════════════════╗\n");
+    printf("║                 CPU USAGE MONITOR                ║\n");
+    printf("╠═══════════════╦══════════════════════════════════╣\n");
+    printf("║     CPU       ║           USAGE %%                ║\n");
+    printf("╠═══════════════╬══════════════════════════════════╣\n");
+    
+    // Display overall CPU usage
+    printf("║ %-13s ║", "Overall");
+    
+    int overall_bars = (int)(cpu_data->overall_usage / 3.33);
+    if (overall_bars > 30) overall_bars = 30;
+    if (overall_bars < 0) overall_bars = 0;
+    
+    for (int j = 0; j < 30; j++) {
+        printf(j < overall_bars ? "█" : " ");
+    }
+    printf(" %5.1f%% ║\n", cpu_data->overall_usage);
+    
+    printf("╠═══════════════╬══════════════════════════════════╣\n");
+    
+    // Display individual core usage (start from 1, since 0 is the overall)
+    for (int i = 1; i <= cpu_data->total_cores; i++) {
+        printf("║ %-13s ║", cpu_data->cores[i].cpu_name);
+        
+        int bars = (int)(cpu_data->cores[i].usage / 3.33);
+        if (bars > 30) bars = 30;
+        if (bars < 0) bars = 0;
+        
+        for (int j = 0; j < 30; j++) {
+            printf(j < bars ? "█" : " ");
+        }
+        printf(" %5.1f%% ║\n", cpu_data->cores[i].usage);
+    }
+    
+    printf("╚═══════════════╩══════════════════════════════════╝\n");
+    printf("\nPress Ctrl+C to exit...\n");
 }
 
 float get_cpu_usage() {
@@ -516,6 +690,17 @@ void *monitor_system(void *arg) {
     for (int i = 0; i < storage_device_count; i++) {
     }
 
+    // Initialize CPU core monitoring
+    cpu_data.total_cores = get_core_count();
+    if (cpu_data.total_cores <= 0) {
+        printf("Error: Could not determine number of CPU cores\n");
+        return NULL;
+    }
+
+    // Initial read to populate stats
+    read_cpu_stats(&cpu_data);
+    sleep(2); // Wait for initial data
+
     while (!stop) {
         float cpu_usage = get_cpu_usage();
         LoadAverage load = get_load_average();
@@ -526,6 +711,11 @@ void *monitor_system(void *arg) {
         float motherboard_temp = get_motherboard_temperature();
         float psu_temp = get_psu_temperature();
         float case_temp = get_case_temperature();
+        
+        // Read and display CPU core usage
+        read_cpu_stats(&cpu_data);
+        calculate_cpu_usage(&cpu_data);
+        display_cpu_table(&cpu_data);
         
         print_timestamp();
         
