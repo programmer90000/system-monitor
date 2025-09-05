@@ -13,21 +13,28 @@
 
 volatile sig_atomic_t stop = 0;
 
+/**
+ * Signal handler function to gracefully terminate the program
+ * Sets the global stop flag when SIGINT or SIGTERM is received
+ */
 void handle_signal(int sig) {
     stop = 1;
 }
 
+// Storage device structure to hold name and temperature sensor path
 typedef struct {
     char name[64];
     char path[256];
 } StorageDevice;
 
+// Load average structure for 1, 5, and 15 minute system loads
 typedef struct {
     float load_1min;
     float load_5min;
     float load_15min;
 } LoadAverage;
 
+// Process information structure containing detailed process metrics
 typedef struct {
     pid_t pid;
     char name[256];
@@ -41,6 +48,7 @@ typedef struct {
     unsigned long write_bytes;
 } ProcessInfo;
 
+// Process tree node structure for building hierarchical process relationships
 typedef struct ProcessNode {
     pid_t pid;
     pid_t ppid;
@@ -49,6 +57,7 @@ typedef struct ProcessNode {
     struct ProcessNode* next;
 } ProcessNode;
 
+// Process sample structure for CPU usage calculation between time intervals
 typedef struct ProcSample {
     pid_t pid;
     unsigned long utime, stime;
@@ -56,6 +65,8 @@ typedef struct ProcSample {
 
 // CPU Core Monitoring Structures
 #define MAX_CORES 32
+
+// CPU statistics structure for tracking various CPU time states
 typedef struct {
     unsigned long user;
     unsigned long nice;
@@ -67,6 +78,7 @@ typedef struct {
     unsigned long steal;
 } CPUStats;
 
+// Core data structure containing CPU name, current and previous stats, and usage percentage
 typedef struct {
     char cpu_name[16];
     CPUStats stats;
@@ -74,6 +86,7 @@ typedef struct {
     double usage;
 } CoreData;
 
+// CPU data structure containing overall usage and individual core information
 typedef struct {
     int total_cores;
     CoreData cores[MAX_CORES];
@@ -83,12 +96,14 @@ typedef struct {
 // History tracking
 #define HISTORY_SIZE 10
 
+// Circular buffer structure for storing historical metric values
 typedef struct {
     float values[HISTORY_SIZE];
     int index;
     int count;
 } HistoryBuffer;
 
+// Comprehensive system history structure tracking all monitored metrics
 typedef struct {
     HistoryBuffer cpu_usage;
     HistoryBuffer load_1min;
@@ -107,18 +122,25 @@ typedef struct {
     int storage_count;
 } SystemHistory;
 
+// Global variables
 StorageDevice *storage_devices = NULL;
 int storage_device_count = 0;
 CPUData cpu_data;
 SystemHistory system_history;
 
-// History buffer functions
+/**
+ * Initializes a history buffer with zeros and resets index/count
+ */
 void init_history_buffer(HistoryBuffer *buffer) {
     memset(buffer->values, 0, sizeof(buffer->values));
     buffer->index = 0;
     buffer->count = 0;
 }
 
+/**
+ * Adds a new value to the circular history buffer
+ * Maintains the most recent HISTORY_SIZE values
+ */
 void add_to_history(HistoryBuffer *buffer, float value) {
     buffer->values[buffer->index] = value;
     buffer->index = (buffer->index + 1) % HISTORY_SIZE;
@@ -127,6 +149,10 @@ void add_to_history(HistoryBuffer *buffer, float value) {
     }
 }
 
+/**
+ * Calculates and returns the average of all values in the history buffer
+ * Returns 0.0 if buffer is empty
+ */
 float get_history_average(HistoryBuffer *buffer) {
     if (buffer->count == 0) return 0.0;
     
@@ -137,6 +163,10 @@ float get_history_average(HistoryBuffer *buffer) {
     return sum / buffer->count;
 }
 
+/**
+ * Initializes all history buffers in the system history structure
+ * Sets up tracking for all monitored system metrics
+ */
 void init_system_history() {
     init_history_buffer(&system_history.cpu_usage);
     init_history_buffer(&system_history.load_1min);
@@ -162,6 +192,10 @@ void init_system_history() {
     system_history.storage_count = 0;
 }
 
+/**
+ * Reads temperature from a file and converts from millidegrees to degrees Celsius
+ * Returns -1.0 if file cannot be read or parsed
+ */
 float read_temperature_file(const char *filename) {
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
@@ -178,6 +212,10 @@ float read_temperature_file(const char *filename) {
     return temp / 1000.0;
 }
 
+/**
+ * Reads and returns the system load averages from /proc/loadavg
+ * Returns structure with -1.0 values if unable to read
+ */
 LoadAverage get_load_average() {
     LoadAverage load = {-1.0, -1.0, -1.0};
     FILE *file = fopen("/proc/loadavg", "r");
@@ -195,7 +233,10 @@ LoadAverage get_load_average() {
     return load;
 }
 
-// Function to get core count
+/**
+ * Counts the number of CPU cores by parsing /proc/stat
+ * Returns -1 on error, excludes the aggregate 'cpu' line
+ */
 int get_core_count() {
     FILE *file = fopen("/proc/stat", "r");
     if (!file) {
@@ -215,7 +256,10 @@ int get_core_count() {
     return count;
 }
 
-// Function to read CPU stats for all cores
+/**
+ * Reads CPU statistics for all cores from /proc/stat
+ * Stores current statistics and preserves previous for delta calculations
+ */
 void read_cpu_stats(CPUData *cpu_data) {
     FILE *file = fopen("/proc/stat", "r");
     if (!file) {
@@ -264,7 +308,10 @@ void read_cpu_stats(CPUData *cpu_data) {
     }
 }
 
-// Function to calculate CPU usage for all cores
+/**
+ * Calculates CPU usage percentages for all cores based on delta between readings
+ * Uses the formula: usage = (total_time - idle_time) / total_time * 100%
+ */
 void calculate_cpu_usage(CPUData *cpu_data) {
     for (int i = 0; i <= cpu_data->total_cores; i++) {
         CPUStats *current = &cpu_data->cores[i].stats;
@@ -299,6 +346,10 @@ void calculate_cpu_usage(CPUData *cpu_data) {
     cpu_data->overall_usage = cpu_data->cores[0].usage;
 }
 
+/**
+ * Calculates overall CPU usage by comparing idle time between two readings
+ * Returns -1.0 if unable to read /proc/stat
+ */
 float get_cpu_usage() {
     static unsigned long long last_total = 0, last_idle = 0;
     FILE *file = fopen("/proc/stat", "r");
@@ -335,6 +386,10 @@ float get_cpu_usage() {
     return usage;
 }
 
+/**
+ * Attempts to read CPU temperature from various known thermal zone locations
+ * Returns -1.0 if no temperature sensor can be found
+ */
 float get_cpu_temperature() {
     const char *thermal_files[] = {
         "/sys/class/thermal/thermal_zone0/temp",
@@ -355,6 +410,10 @@ float get_cpu_temperature() {
     return -1.0;
 }
 
+/**
+ * Attempts to read GPU temperature from various known graphics card locations
+ * Returns -1.0 if no GPU temperature sensor can be found
+ */
 float get_gpu_temperature() {
     const char *gpu_files[] = {
         "/sys/class/drm/card0/device/hwmon/hwmon0/temp1_input",
@@ -380,6 +439,10 @@ float get_gpu_temperature() {
     return -1.0;
 }
 
+/**
+ * Attempts to read VRM (Voltage Regulator Module) temperature from known locations
+ * Returns -1.0 if no VRM temperature sensor can be found
+ */
 float get_vrm_temperature() {
     const char *vrm_files[] = {
         "/sys/class/hwmon/hwmon0/temp2_input",
@@ -408,6 +471,10 @@ float get_vrm_temperature() {
     return -1.0;
 }
 
+/**
+ * Attempts to read chipset temperature from various known locations
+ * Returns -1.0 if no chipset temperature sensor can be found
+ */
 float get_chipset_temperature() {
     const char *chipset_files[] = {
         "/sys/class/hwmon/hwmon0/temp4_input",
@@ -435,6 +502,10 @@ float get_chipset_temperature() {
     return -1.0;
 }
 
+/**
+ * Attempts to read motherboard temperature from various known locations
+ * Returns -1.0 if no motherboard temperature sensor can be found
+ */
 float get_motherboard_temperature() {
     const char *motherboard_files[] = {
         "/sys/class/hwmon/hwmon0/temp3_input",
@@ -465,6 +536,11 @@ float get_motherboard_temperature() {
     return -1.0;
 }
 
+/**
+ * Attempts to read PSU (Power Supply Unit) temperature from various locations
+ * Searches through hwmon devices and power supply directories
+ * Returns -1.0 if no PSU temperature sensor can be found
+ */
 float get_psu_temperature() {    
     DIR *dir = opendir("/sys/class/hwmon");
     if (dir) {
@@ -574,6 +650,11 @@ float get_psu_temperature() {
     return -1.0;
 }
 
+/**
+ * Attempts to read case/ambient temperature from various known locations
+ * Searches for sensors labeled as case, ambient, or similar
+ * Returns -1.0 if no case temperature sensor can be found
+ */
 float get_case_temperature() {
     const char *case_files[] = {
         "/sys/class/hwmon/hwmon*/temp3_input",
@@ -646,6 +727,10 @@ float get_case_temperature() {
     return -1.0;
 }
 
+/**
+ * Scans /sys/class/hwmon for storage devices (NVMe, SATA, SSD)
+ * Populates the global storage_devices array with found devices
+ */
 void find_storage_devices() {
     DIR *dir = opendir("/sys/class/hwmon");
     if (!dir) return;
@@ -708,10 +793,18 @@ void find_storage_devices() {
     closedir(dir);
 }
 
+/**
+ * Reads temperature from a specific storage device path
+ * Returns temperature in Celsius or -1.0 on error
+ */
 float get_storage_temperature(const char *path) {
     return read_temperature_file(path);
 }
 
+/**
+ * Counts the number of running processes by scanning /proc directory
+ * Returns -1 if /proc cannot be accessed
+ */
 int get_process_count() {
     DIR *dir = opendir("/proc");
     if (!dir) return -1;
@@ -727,6 +820,10 @@ int get_process_count() {
     return count;
 }
 
+/**
+ * Displays the table header with formatted column titles
+ * Uses ANSI escape codes to clear screen and position cursor
+ */
 void display_table_header() {
     printf("\033[2J\033[H"); // Clear screen and move to top
     printf("╔══════════════════════════════════════════════════════════════════════════════════════════════════════════╗\n");
@@ -736,11 +833,18 @@ void display_table_header() {
     printf("╠═══════════════════════════╬═════════╬════════╬═════════════════════════════════════════════════════════╣\n");
 }
 
+/**
+ * Displays the table footer with exit instructions and update information
+ */
 void display_table_footer() {
     printf("╚═══════════════════════════╩═════════╩════════╩═════════════════════════════════════════════════════════╝\n");
     printf("Press Ctrl+C to exit - Update interval: 1 second - History: 10 samples\n");
 }
 
+/**
+ * Displays a single row in the monitoring table with current, average, and historical values
+ * Uses ANSI cursor positioning to update specific rows without redrawing entire table
+ */
 void display_history_row(const char *label, HistoryBuffer buffer, const char *format, int row) {
     // Move cursor to the correct row
     printf("\033[%d;1H", 6 + row);
@@ -792,6 +896,10 @@ void display_history_row(const char *label, HistoryBuffer buffer, const char *fo
     printf(" ║");
 }
 
+/**
+ * Calculates the total number of rows needed for the display table
+ * Includes base metrics, storage devices, and CPU cores
+ */
 int calculate_total_rows() {
     int rows = 12; // Base rows (CPU usage, loads, temps, process count)
     rows += system_history.storage_count; // Storage devices
@@ -799,6 +907,10 @@ int calculate_total_rows() {
     return rows;
 }
 
+/**
+ * Updates the entire display by refreshing all table rows
+ * Uses ANSI escape codes for efficient screen updates
+ */
 void update_display() {
     static int first_display = 1;
     static int total_rows = 0;
@@ -827,11 +939,7 @@ void update_display() {
     display_history_row("Motherboard Temp (°C)", system_history.motherboard_temp, "%6.1f", row++);
     display_history_row("PSU Temp (°C)", system_history.psu_temp, "%6.1f", row++);
     display_history_row("Case Temp (°C)", system_history.case_temp, "%6.1f", row++);
-    
-    // Process count
     display_history_row("Process Count", system_history.total_processes, "%6.0f", row++);
-    
-    // Storage temperatures
     for (int i = 0; i < system_history.storage_count; i++) {
         char label[32];
         snprintf(label, sizeof(label), "Storage %d Temp", i);
@@ -922,6 +1030,7 @@ void *monitor_system(void *arg) {
     return NULL;
 }
 
+// Calculate total time computer was on in different states
 static long get_total_jiffies() {
     FILE *f = fopen("/proc/stat", "r");
     if (!f) return -1;
