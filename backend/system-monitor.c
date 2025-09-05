@@ -1021,7 +1021,7 @@ void *monitor_system(void *arg) {
         }
         
         // Update the display
-        update_display();
+        // update_display();
         
         sleep(1); // Update every second
     }
