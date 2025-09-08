@@ -10,6 +10,7 @@
 #include <pthread.h>
 #include <sys/sysinfo.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 
 volatile sig_atomic_t stop = 0;
 
@@ -963,6 +964,103 @@ void update_display() {
     fflush(stdout);
 }
 
+#define CMD_BUFFER_SIZE 1024
+
+const char *find_smartctl_path() {
+    FILE *pipe;
+    char path_buffer[256];
+    static char smartctl_path[256];
+    
+    pipe = popen("which smartctl 2>/dev/null", "r");
+    if (pipe != NULL) {
+        if (fgets(path_buffer, sizeof(path_buffer), pipe) != NULL) {
+            path_buffer[strcspn(path_buffer, "\n")] = 0;
+            pclose(pipe);
+            if (access(path_buffer, X_OK) == 0) {
+                strncpy(smartctl_path, path_buffer, sizeof(smartctl_path));
+                return smartctl_path;
+            }
+        }
+        pclose(pipe);
+    }
+    
+    const char *common_paths[] = {
+        "/usr/sbin/smartctl",
+        "/usr/bin/smartctl",
+        "/sbin/smartctl",
+        "/usr/local/sbin/smartctl",
+        "/usr/local/bin/smartctl",
+        NULL
+    };
+    
+    for (int i = 0; common_paths[i] != NULL; i++) {
+        if (access(common_paths[i], X_OK) == 0) {
+            return common_paths[i];
+        }
+    }
+    
+    return NULL;
+}
+
+void detect_storage_devices(char ***devices, int *count) {
+    const char *patterns[] = {
+        "/dev/sd*", "/dev/nvme*n*", "/dev/mmcblk*", "/dev/vd*", "/dev/hd*", NULL
+    };
+    
+    *count = 0;
+    *devices = NULL;
+    
+    for (int i = 0; patterns[i] != NULL; i++) {
+        glob_t glob_result;
+        if (glob(patterns[i], GLOB_MARK, NULL, &glob_result) == 0) {
+            for (size_t j = 0; j < glob_result.gl_pathc; j++) {
+                char *path = glob_result.gl_pathv[j];
+                if (strchr(path, 'p') == NULL && 
+                    strspn(strrchr(path, '/') + 1, "0123456789") == 0) {
+                    struct stat st;
+                    if (stat(path, &st) == 0 && S_ISBLK(st.st_mode)) {
+                        *devices = realloc(*devices, (*count + 1) * sizeof(char *));
+                        (*devices)[*count] = strdup(path);
+                        (*count)++;
+                    }
+                }
+            }
+            globfree(&glob_result);
+        }
+    }
+}
+
+void print_smart_data(const char *smartctl_path, const char *device) {
+    char command[CMD_BUFFER_SIZE];
+    FILE *pipe;
+
+    snprintf(command, sizeof(command), "sudo %s -a %s 2>/dev/null", smartctl_path, device);
+    printf("\n === S.M.A.R.T. Data for %s ===\n", device);
+    printf("Executing: %s\n\n", command);
+
+    pipe = popen(command, "r");
+    if (pipe == NULL) {
+        perror("popen failed");
+        return;
+    }
+
+    char buffer[256];
+    while (fgets(buffer, sizeof(buffer), pipe) != NULL) {
+        printf("%s", buffer);
+    }
+    pclose(pipe);
+}
+
+void print_device_list(char **devices, int count) {
+    printf("Available storage devices:\n");
+    printf("=============================\n");
+    
+    for (int i = 0; i < count; i++) {
+        printf("%d. %s\n", i + 1, devices[i]);
+    }
+    printf("\n");
+}
+
 void *monitor_system(void *arg) {
     find_storage_devices();
     init_system_history();
@@ -977,6 +1075,31 @@ void *monitor_system(void *arg) {
     // Initial read to populate stats
     read_cpu_stats(&cpu_data);
     sleep(2); // Wait for initial data
+
+    const char *smartctl_path = find_smartctl_path();
+    if (smartctl_path == NULL) {
+        printf("Error: smartctl not found.\n");
+        printf("Install with: sudo apt install smartmontools\n");
+        return NULL;
+    }
+
+    char **devices = NULL;
+    int device_count = 0;
+    detect_storage_devices(&devices, &device_count);
+    
+    if (device_count == 0) {
+        printf("No storage devices detected!\n");
+        return NULL;
+    }
+
+    print_device_list(devices, device_count);
+    
+    for (int i = 0; i < device_count; i++) {
+        print_smart_data(smartctl_path, devices[i]);
+        free(devices[i]);
+    }
+    free(devices);
+
 
     while (!stop) {
         float cpu_usage = get_cpu_usage();
