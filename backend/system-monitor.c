@@ -1068,7 +1068,7 @@ void *monitor_system(void *arg) {
     // Initialize CPU core monitoring
     cpu_data.total_cores = get_core_count();
     if (cpu_data.total_cores <= 0) {
-        printf("Error: Could not determine number of CPU cores\n");
+        // printf("Error: Could not determine number of CPU cores\n");
         return NULL;
     }
 
@@ -1078,8 +1078,8 @@ void *monitor_system(void *arg) {
 
     const char *smartctl_path = find_smartctl_path();
     if (smartctl_path == NULL) {
-        printf("Error: smartctl not found.\n");
-        printf("Install with: sudo apt install smartmontools\n");
+        // printf("Error: smartctl not found.\n");
+        // printf("Install with: sudo apt install smartmontools\n");
         return NULL;
     }
 
@@ -1088,16 +1088,16 @@ void *monitor_system(void *arg) {
     detect_storage_devices(&devices, &device_count);
     
     if (device_count == 0) {
-        printf("No storage devices detected!\n");
+        // printf("No storage devices detected!\n");
         return NULL;
     }
 
-    print_device_list(devices, device_count);
+    // print_device_list(devices, device_count);
     
-    for (int i = 0; i < device_count; i++) {
-        print_smart_data(smartctl_path, devices[i]);
-        free(devices[i]);
-    }
+    // for (int i = 0; i < device_count; i++) {
+        // print_smart_data(smartctl_path, devices[i]);
+        // free(devices[i]);
+    // }
     free(devices);
 
 
