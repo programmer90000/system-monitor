@@ -11,6 +11,9 @@
 #include <sys/sysinfo.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/utsname.h>
+#include <gnu/libc-version.h>
+#include <sys/statvfs.h>
 
 volatile sig_atomic_t stop = 0;
 
@@ -1061,6 +1064,334 @@ void print_device_list(char **devices, int count) {
     printf("\n");
 }
 
+void print_uname_info() {
+    struct utsname info;
+    if (uname(&info) == 0) {
+        printf("\n=== System Information (uname) ===\n");
+        printf("OS: %s\n", info.sysname);
+        printf("Hostname: %s\n", info.nodename);
+        printf("Kernel Release: %s\n", info.release);
+        printf("Kernel Version: %s\n", info.version);
+        printf("Architecture: %s\n", info.machine);
+    } else {
+        perror("uname failed");
+    }
+}
+
+void print_detailed_os_info() {
+    printf("\n=== Detailed OS Information ===\n");
+    
+    const char *release_files[] = {
+        "/etc/os-release",
+        "/usr/lib/os-release",
+        "/etc/lsb-release",
+        "/etc/debian_version",
+        "/etc/redhat-release",
+        "/etc/centos-release",
+        "/etc/fedora-release",
+        "/etc/SuSE-release",
+        "/etc/arch-release",
+        NULL
+    };
+    
+    for (int i = 0; release_files[i] != NULL; i++) {
+        FILE *fp = fopen(release_files[i], "r");
+        if (fp) {
+            printf("--- %s ---\n", release_files[i]);
+            char line[256];
+            while (fgets(line, sizeof(line), fp)) {
+                printf("%s", line);
+            }
+            fclose(fp);
+            printf("\n");
+        }
+    }
+}
+
+void print_kernel_details() {
+    printf("\n=== Kernel Details ===\n");
+    
+    FILE *fp = fopen("/proc/version", "r");
+    if (fp) {
+        char version[256];
+        if (fgets(version, sizeof(version), fp)) {
+            printf("Full Kernel Version: %s", version);
+        }
+        fclose(fp);
+    }
+    
+    fp = fopen("/proc/version_signature", "r");
+    if (fp) {
+        char sig[256];
+        if (fgets(sig, sizeof(sig), fp)) {
+            printf("Kernel Signature: %s", sig);
+        }
+        fclose(fp);
+    }
+    
+    fp = fopen("/proc/cmdline", "r");
+    if (fp) {
+        char cmdline[1024];
+        if (fgets(cmdline, sizeof(cmdline), fp)) {
+            printf("Kernel Command Line: %s\n", cmdline);
+        }
+        fclose(fp);
+    }
+    
+    printf("Kernel Architecture: ");
+    #if defined(__x86_64__)
+    printf("x86_64\n");
+    #elif defined(__i386__)
+    printf("i386\n");
+    #elif defined(__aarch64__)
+    printf("ARM64\n");
+    #elif defined(__arm__)
+    printf("ARM\n");
+    #elif defined(__powerpc64__)
+    printf("PPC64\n");
+    #elif defined(__mips__)
+    printf("MIPS\n");
+    #else
+    printf("Unknown\n");
+    #endif
+}
+
+void print_distribution_info() {
+    printf("\n=== Distribution Information ===\n");
+    
+    const char *package_managers[] = {
+        "/etc/apt/sources.list",
+        "/etc/yum.repos.d/",
+        "/etc/dnf/dnf.conf",
+        "/etc/zypp/zypp.conf",
+        "/etc/pacman.conf",
+        "/etc/portage/make.conf",
+        "/etc/emerge/",
+        NULL
+    };
+    
+    const char *pm_names[] = {
+        "APT (Debian/Ubuntu)",
+        "YUM (RedHat/CentOS)",
+        "DNF (Fedora/RHEL8+)",
+        "Zypper (openSUSE)",
+        "Pacman (Arch)",
+        "Portage (Gentoo)",
+        "Emerge (Gentoo)"
+    };
+    
+    for (int i = 0; package_managers[i] != NULL; i++) {
+        FILE *fp = fopen(package_managers[i], "r");
+        if (fp) {
+            printf("Package Manager: %s\n", pm_names[i]);
+            fclose(fp);
+            break;
+        }
+        
+        if (strstr(package_managers[i], "/etc/yum.repos.d/") || 
+            strstr(package_managers[i], "/etc/emerge/")) {
+            DIR *dir = opendir(package_managers[i]);
+            if (dir) {
+                printf("Package Manager: %s\n", pm_names[i]);
+                closedir(dir);
+                break;
+            }
+        }
+    }
+    
+    printf("Init System: ");
+    FILE *fp = fopen("/proc/1/comm", "r");
+    if (fp) {
+        char init_system[32];
+        if (fgets(init_system, sizeof(init_system), fp)) {
+            init_system[strcspn(init_system, "\n")] = 0;
+            printf("%s", init_system);
+        }
+        fclose(fp);
+    } else {
+        FILE *cmd = popen("ps -p 1 -o comm= 2>/dev/null", "r");
+        if (cmd) {
+            char init_system[32];
+            if (fgets(init_system, sizeof(init_system), cmd)) {
+                init_system[strcspn(init_system, "\n")] = 0;
+                printf("%s", init_system);
+            }
+            pclose(cmd);
+        } else {
+            char init_path[256];
+            ssize_t len = readlink("/sbin/init", init_path, sizeof(init_path)-1);
+            if (len != -1) {
+                init_path[len] = '\0';
+                char *basename = strrchr(init_path, '/');
+                if (basename) {
+                    printf("%s", basename + 1);
+                } else {
+                    printf("%s", init_path);
+                }
+            } else {
+                printf("Unknown");
+            }
+        }
+    }
+    printf("\n");
+    
+    const char *version_files[] = {
+        "/etc/debian_version",
+        "/etc/redhat-release",
+        "/etc/centos-release", 
+        "/etc/fedora-release",
+        "/etc/SuSE-release",
+        "/etc/arch-release",
+        "/etc/slackware-version",
+        "/etc/gentoo-release",
+        NULL
+    };
+    
+    const char *distro_names[] = {
+        "Debian",
+        "RedHat",
+        "CentOS",
+        "Fedora", 
+        "SUSE",
+        "Arch",
+        "Slackware",
+        "Gentoo"
+    };
+    
+    for (int i = 0; version_files[i] != NULL; i++) {
+        fp = fopen(version_files[i], "r");
+        if (fp) {
+            char version[128];
+            if (fgets(version, sizeof(version), fp)) {
+                version[strcspn(version, "\n")] = 0;
+                printf("%s Version: %s\n", distro_names[i], version);
+            }
+            fclose(fp);
+            break;
+        }
+    }
+    
+    fp = fopen("/proc/1/comm", "r");
+    if (fp) {
+        char init_system[32];
+        if (fgets(init_system, sizeof(init_system), fp)) {
+            init_system[strcspn(init_system, "\n")] = 0;
+            if (strcmp(init_system, "systemd") == 0) {
+                FILE *cmd = popen("systemctl --version 2>/dev/null | head -1", "r");
+                if (cmd) {
+                    char systemd_version[64];
+                    if (fgets(systemd_version, sizeof(systemd_version), cmd)) {
+                        systemd_version[strcspn(systemd_version, "\n")] = 0;
+                        printf("Systemd Version: %s\n", systemd_version);
+                    }
+                    pclose(cmd);
+                }
+            }
+        }
+        fclose(fp);
+    }
+}
+
+void print_library_versions() {
+    printf("\n=== Library Versions ===\n");
+    
+    printf("GLIBC Version: %s\n", gnu_get_libc_version());
+    printf("GLIBC Release: %s\n", gnu_get_libc_release());
+    
+    #ifdef __GLIBC__
+    printf("Using GLIBC: %d.%d\n", __GLIBC__, __GLIBC_MINOR__);
+    #endif
+    
+    #ifdef __GNUC__
+    printf("GCC Version: %d.%d.%d\n", __GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__);
+    #endif
+    
+    #ifdef __STDC_VERSION__
+    printf("C Standard: %ld\n", __STDC_VERSION__);
+    #endif
+}
+
+void print_security_info() {
+    printf("\n=== Security & Update Information ===\n");
+    
+    FILE *fp = fopen("/etc/apt/sources.list", "r");
+    if (fp) {
+        char line[256];
+        int security_updates = 0;
+        while (fgets(line, sizeof(line), fp)) {
+            if (strstr(line, "security") || strstr(line, "updates")) {
+                security_updates = 1;
+                break;
+            }
+        }
+        fclose(fp);
+        printf("Security updates configured: %s\n", security_updates ? "Yes" : "No");
+    }
+    
+    fp = fopen("/var/lib/apt/periodic/update-success-stamp", "r");
+    if (fp) {
+        char timestamp[64];
+        if (fgets(timestamp, sizeof(timestamp), fp)) {
+            printf("Last successful update: %s", timestamp);
+        }
+        fclose(fp);
+    }
+    
+    fp = fopen("/sys/kernel/security/lsm", "r");
+    if (fp) {
+        char lsm[256];
+        if (fgets(lsm, sizeof(lsm), fp)) {
+            printf("Security Modules: %s", lsm);
+        }
+        fclose(fp);
+    }
+}
+
+void print_system_limits() {
+    printf("\n=== System Limits ===\n");
+    
+    FILE *fp = fopen("/proc/sys/kernel/pid_max", "r");
+    if (fp) {
+        char pid_max[32];
+        if (fgets(pid_max, sizeof(pid_max), fp)) {
+            printf("Maximum PID: %s", pid_max);
+        }
+        fclose(fp);
+    }
+    
+    fp = fopen("/proc/sys/kernel/threads-max", "r");
+    if (fp) {
+        char threads_max[32];
+        if (fgets(threads_max, sizeof(threads_max), fp)) {
+            printf("Maximum threads: %s", threads_max);
+        }
+        fclose(fp);
+    }
+    
+    fp = fopen("/proc/sys/kernel/pty/max", "r");
+    if (fp) {
+        char pty_max[32];
+        if (fgets(pty_max, sizeof(pty_max), fp)) {
+            printf("Maximum PTYs: %s", pty_max);
+        }
+        fclose(fp);
+    }
+}
+
+void print_os_summary(void) {
+    printf("=== OPERATING SYSTEM DETAILED SUMMARY ===\n");
+    
+    print_uname_info();
+    print_detailed_os_info();
+    print_kernel_details();
+    print_distribution_info();
+    print_library_versions();
+    print_security_info();
+    print_system_limits();
+    
+    printf("\n=== End of OS Summary ===\n");
+}
+
 void *monitor_system(void *arg) {
     find_storage_devices();
     init_system_history();
@@ -1145,6 +1476,8 @@ void *monitor_system(void *arg) {
         
         // Update the display
         // update_display();
+        
+        print_os_summary();
         
         sleep(1); // Update every second
     }
