@@ -1640,8 +1640,6 @@ void *monitor_system(void *arg) {
     // }
     free(devices);
 
-    read_journal_logs();
-
     while (!stop) {
         float cpu_usage = get_cpu_usage();
         LoadAverage load = get_load_average();
