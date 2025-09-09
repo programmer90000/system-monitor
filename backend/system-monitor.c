@@ -1392,6 +1392,8 @@ void print_os_summary(void) {
     printf("\n=== End of OS Summary ===\n");
 }
 
+void show_system_uptime_and_cpu_sleep_time();
+
 void *monitor_system(void *arg) {
     find_storage_devices();
     init_system_history();
@@ -1431,6 +1433,7 @@ void *monitor_system(void *arg) {
     // }
     free(devices);
 
+    show_system_uptime_and_cpu_sleep_time();
 
     while (!stop) {
         float cpu_usage = get_cpu_usage();
@@ -1669,6 +1672,27 @@ void *process_thread(void *arg) {
     }
     return NULL;
 }
+
+void show_system_uptime_and_cpu_sleep_time() {
+    FILE *fp = fopen("/proc/uptime", "r");
+    if (!fp) {
+        perror("Error opening /proc/uptime");
+        return;
+    }
+
+    double uptime_seconds, sleep_seconds;
+    if (fscanf(fp, "%lf %lf", &uptime_seconds, &sleep_seconds) != 2) {
+        fprintf(stderr, "Error reading from /proc/uptime\n");
+        fclose(fp);
+        return;
+    }
+
+    fclose(fp);
+
+    printf("System Uptime: %.2f seconds\n", uptime_seconds);
+    printf("CPU Sleep Time: %.2f seconds\n", sleep_seconds);
+}
+
 
 int main() {
     signal(SIGINT, handle_signal);
