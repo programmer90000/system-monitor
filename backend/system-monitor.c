@@ -1567,7 +1567,39 @@ void list_manual_installs() {
     }
 }
 
+void read_journal_logs() {
+    FILE *fp;
+    char buffer[1024];
 
+    // Open the journalctl command
+    fp = popen("sudo journalctl", "r");
+    if (fp == NULL) {
+        perror("Failed to run journalctl command");
+        fprintf(stderr, "Error: Could not execute journalctl. Make sure you have sudo privileges.\n");
+        return;
+    }
+
+    // Read the output line by line and print it
+    while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+        printf("Journal: %s", buffer);
+    }
+
+    // Check if there was an error during reading
+    if (ferror(fp)) {
+        perror("Error reading from journalctl output");
+        fprintf(stderr, "Error: Failed to read data from journalctl command.\n");
+    }
+
+    // Close the stream and check for command execution errors
+    int exit_status = pclose(fp);
+    if (exit_status == -1) {
+        perror("Failed to close journalctl process");
+        fprintf(stderr, "Error: Could not properly close the journalctl command.\n");
+    } else if (exit_status != 0) {
+        fprintf(stderr, "Error: journalctl command failed with exit status %d\n", exit_status);
+        fprintf(stderr, "This may indicate permission issues or journalctl errors.\n");
+    }
+}
 
 void *monitor_system(void *arg) {
     find_storage_devices();
@@ -1607,6 +1639,8 @@ void *monitor_system(void *arg) {
         // free(devices[i]);
     // }
     free(devices);
+
+    read_journal_logs();
 
     while (!stop) {
         float cpu_usage = get_cpu_usage();
