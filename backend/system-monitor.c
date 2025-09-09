@@ -1608,8 +1608,6 @@ void *monitor_system(void *arg) {
     // }
     free(devices);
 
-    list_manual_installs();
-
     while (!stop) {
         float cpu_usage = get_cpu_usage();
         LoadAverage load = get_load_average();
