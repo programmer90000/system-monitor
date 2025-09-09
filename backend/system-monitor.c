@@ -1470,24 +1470,47 @@ void detect_all_package_managers() {
         "--version"
     };
 
-    char command[128];
-    char buffer[256];
+    const char *list_flags[] = {
+        "list --installed", // apt
+        "list installed",   // yum
+        "list installed",   // dnf
+        "-Q",               // pacman
+        "se -i",            // zypper
+        "list",             // brew
+        "list -l",          // choco
+        "list"              // winget
+    };
+
+    char command[512];
+    char buffer[512];
     FILE *fp;
     int found_any = 0;
 
-    printf("Installed package managers and versions:\n");
+    printf("Detecting package managers and listing installed packages:\n");
 
     for (int i = 0; i < sizeof(managers)/sizeof(managers[0]); i++) {
+        // Check version
         snprintf(command, sizeof(command), "%s %s 2>&1", managers[i], version_flags[i]);
         fp = popen(command, "r");
         if (fp) {
             if (fgets(buffer, sizeof(buffer), fp) != NULL) {
-                // Remove trailing newline
                 buffer[strcspn(buffer, "\n")] = 0;
-                printf("%s: %s\n", managers[i], buffer);
+                printf("\n%s detected: %s\n", managers[i], buffer);
                 found_any = 1;
             }
             pclose(fp);
+
+            // List installed packages
+            snprintf(command, sizeof(command), "%s %s 2>&1", managers[i], list_flags[i]);
+            fp = popen(command, "r");
+            if (fp) {
+                printf("Installed packages for %s:\n", managers[i]);
+                while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+                    buffer[strcspn(buffer, "\n")] = 0;
+                    printf("  %s\n", buffer);
+                }
+                pclose(fp);
+            }
         }
     }
 
