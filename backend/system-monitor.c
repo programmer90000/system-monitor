@@ -1486,9 +1486,6 @@ void *monitor_system(void *arg) {
     // }
     free(devices);
 
-    check_startup_directories();
-    check_systemd_user_services();
-
     while (!stop) {
         float cpu_usage = get_cpu_usage();
         LoadAverage load = get_load_average();
