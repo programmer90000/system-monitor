@@ -14,6 +14,7 @@
 #include <sys/utsname.h>
 #include <gnu/libc-version.h>
 #include <sys/statvfs.h>
+#include <pwd.h>
 
 volatile sig_atomic_t stop = 0;
 
@@ -1519,6 +1520,55 @@ void detect_all_package_managers() {
     }
 }
 
+void scan_directory(const char *path) {
+    struct dirent *entry;
+    struct stat info;
+    char fullpath[1024];
+
+    DIR *dir = opendir(path);
+    if (!dir) return;
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+
+        snprintf(fullpath, sizeof(fullpath), "%s/%s", path, entry->d_name);
+        if (stat(fullpath, &info) != 0) continue;
+
+        if (S_ISDIR(info.st_mode)) {
+            // Recurse into subdirectories
+            scan_directory(fullpath);
+        } else if (info.st_mode & S_IXUSR) {
+            // Executable found
+            printf("%s\n", fullpath);
+        }
+    }
+
+    closedir(dir);
+}
+
+void list_manual_installs() {
+    printf("Manually installed programs/binaries:\n");
+
+    // Standard directories
+    scan_directory("/usr/local/bin");
+    scan_directory("/opt");
+
+    // User-specific local binaries
+    const char *home = getenv("HOME");
+    if (!home) {
+        struct passwd *pw = getpwuid(getuid());
+        if (pw) home = pw->pw_dir;
+    }
+
+    if (home) {
+        char path[1024];
+        snprintf(path, sizeof(path), "%s/.local/bin", home);
+        scan_directory(path);
+    }
+}
+
+
+
 void *monitor_system(void *arg) {
     find_storage_devices();
     init_system_history();
@@ -1557,6 +1607,8 @@ void *monitor_system(void *arg) {
         // free(devices[i]);
     // }
     free(devices);
+
+    list_manual_installs();
 
     while (!stop) {
         float cpu_usage = get_cpu_usage();
