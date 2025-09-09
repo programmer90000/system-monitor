@@ -1392,6 +1392,59 @@ void print_os_summary(void) {
     printf("\n=== End of OS Summary ===\n");
 }
 
+// Note: To run this function, run the program without root privileges
+void check_startup_directories() {
+    printf("\n=== STARTUP APPLICATIONS ===\n");
+    
+    const char *dirs[] = {
+        "~/.config/autostart",
+        "~/.config/autostart-scripts",
+        "/etc/xdg/autostart",
+        "~/.kde/Autostart",
+        "~/.local/share/autostart",
+        NULL
+    };
+    
+    char expanded_path[512];
+    char *home = getenv("HOME");
+
+    for (int i = 0; dirs[i] != NULL; i++) {
+        // Expand ~ to home directory
+        if (dirs[i][0] == '~' && home != NULL) {
+            snprintf(expanded_path, sizeof(expanded_path), "%s%s", home, dirs[i] + 1);
+        } else {
+            strncpy(expanded_path, dirs[i], sizeof(expanded_path));
+            expanded_path[sizeof(expanded_path)-1] = '\0';
+        }
+
+        printf("\nChecking: %s\n", expanded_path);
+
+        DIR *dir = opendir(expanded_path);
+        if (!dir) {
+            printf("  Directory not found or inaccessible\n");
+            continue;
+        }
+
+        struct dirent *entry;
+        while ((entry = readdir(dir)) != NULL) {
+            // Include regular files and symlinks (for .desktop files)
+            if (entry->d_type == DT_REG || entry->d_type == DT_LNK) {
+                const char *ext = strrchr(entry->d_name, '.');
+                if (ext && strcmp(ext, ".desktop") == 0) {
+                    printf("  %s\n", entry->d_name);
+                }
+            }
+        }
+        closedir(dir);
+    }
+}
+
+// Note: To run this function, run the program without root privileges
+void check_systemd_user_services() {
+    printf("\n=== SYSTEMD USER SERVICES (STARTUP) ===\n");
+    system("systemctl --user list-unit-files --type=service --state=enabled | grep -E '(enabled|autostart)' | head -10");
+}
+
 void show_system_uptime_and_cpu_sleep_time();
 
 void *monitor_system(void *arg) {
@@ -1433,6 +1486,8 @@ void *monitor_system(void *arg) {
     // }
     free(devices);
 
+    check_startup_directories();
+    check_systemd_user_services();
 
     while (!stop) {
         float cpu_usage = get_cpu_usage();
