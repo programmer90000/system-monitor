@@ -1477,7 +1477,6 @@ void *monitor_system(void *arg) {
         // Update the display
         // update_display();
         
-        print_os_summary();
         
         sleep(1); // Update every second
     }
