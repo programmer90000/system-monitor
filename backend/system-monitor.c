@@ -1433,7 +1433,6 @@ void *monitor_system(void *arg) {
     // }
     free(devices);
 
-    show_system_uptime_and_cpu_sleep_time();
 
     while (!stop) {
         float cpu_usage = get_cpu_usage();
