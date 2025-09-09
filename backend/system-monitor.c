@@ -1557,8 +1557,6 @@ void *monitor_system(void *arg) {
         // free(devices[i]);
     // }
     free(devices);
-    
-    detect_all_package_managers();
 
     while (!stop) {
         float cpu_usage = get_cpu_usage();
