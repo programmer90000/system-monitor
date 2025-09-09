@@ -1447,6 +1447,55 @@ void check_systemd_user_services() {
 
 void show_system_uptime_and_cpu_sleep_time();
 
+void detect_all_package_managers() {
+    const char *managers[] = {
+        "apt",
+        "yum",
+        "dnf",
+        "pacman",
+        "zypper",
+        "brew",
+        "choco",
+        "winget"
+    };
+
+    const char *version_flags[] = {
+        "--version",
+        "--version",
+        "--version",
+        "--version",
+        "--version",
+        "--version",
+        "--version",
+        "--version"
+    };
+
+    char command[128];
+    char buffer[256];
+    FILE *fp;
+    int found_any = 0;
+
+    printf("Installed package managers and versions:\n");
+
+    for (int i = 0; i < sizeof(managers)/sizeof(managers[0]); i++) {
+        snprintf(command, sizeof(command), "%s %s 2>&1", managers[i], version_flags[i]);
+        fp = popen(command, "r");
+        if (fp) {
+            if (fgets(buffer, sizeof(buffer), fp) != NULL) {
+                // Remove trailing newline
+                buffer[strcspn(buffer, "\n")] = 0;
+                printf("%s: %s\n", managers[i], buffer);
+                found_any = 1;
+            }
+            pclose(fp);
+        }
+    }
+
+    if (!found_any) {
+        printf("No known package managers detected.\n");
+    }
+}
+
 void *monitor_system(void *arg) {
     find_storage_devices();
     init_system_history();
@@ -1485,6 +1534,8 @@ void *monitor_system(void *arg) {
         // free(devices[i]);
     // }
     free(devices);
+    
+    detect_all_package_managers();
 
     while (!stop) {
         float cpu_usage = get_cpu_usage();
