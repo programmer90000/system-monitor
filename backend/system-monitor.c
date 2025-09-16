@@ -221,16 +221,27 @@ LoadAverage get_load_average() {
     LoadAverage load = {-1.0, -1.0, -1.0};
     FILE *file = fopen("/proc/loadavg", "r");
     if (file == NULL) {
+        printf("Error: could not open /proc/loadavg\n");
         return load;
     }
     
     if (fscanf(file, "%f %f %f", &load.load_1min, &load.load_5min, &load.load_15min) != 3) {
         fclose(file);
+        printf("Error: could not parse load averages\n");
         load.load_1min = load.load_5min = load.load_15min = -1.0;
         return load;
     }
     
     fclose(file);
+
+    // Display the data directly here
+    printf("System Load Average:\n");
+    printf("---------------------\n");
+    printf("  1 minute : %.2f\n", load.load_1min);
+    printf("  5 minutes: %.2f\n", load.load_5min);
+    printf(" 15 minutes: %.2f\n", load.load_15min);
+    printf("---------------------\n");
+
     return load;
 }
 
