@@ -464,7 +464,7 @@ float get_gpu_temperature() {
         }
     }
 
-    printf("GPU Temperature: Not available\n")
+    printf("GPU Temperature: Not available\n");
     return -1.0;
 }
 
