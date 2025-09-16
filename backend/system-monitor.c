@@ -943,27 +943,66 @@ void detect_storage_devices() {
 }
 
 /**
- * Run SmartCTL for the selected device and print its report
+ * Run SmartCTL and print its report
  */
-void print_smart_data(const char *smartctl_path, const char *device) {
-    char command[CMD_BUFFER_SIZE];
-    FILE *pipe;
+void print_smart_data() {
+    const char *smartctl_path = "/usr/sbin/smartctl";
+    const char *patterns[] = { "/dev/sd*", "/dev/nvme*n*", "/dev/mmcblk*", "/dev/vd*", "/dev/hd*", NULL };
 
-    snprintf(command, sizeof(command), "sudo %s -a %s 2>/dev/null", smartctl_path, device);
-    printf("\n === S.M.A.R.T. Data for %s ===\n", device);
-    printf("Executing: %s\n\n", command);
-
-    pipe = popen(command, "r");
-    if (pipe == NULL) {
-        perror("popen failed");
+    // Check if smartctl exists
+    struct stat st;
+    if (stat(smartctl_path, &st) != 0 || !S_ISREG(st.st_mode)) {
+        fprintf(stderr, "smartctl not found at %s\n", smartctl_path);
         return;
     }
 
-    char buffer[256];
-    while (fgets(buffer, sizeof(buffer), pipe) != NULL) {
-        printf("%s", buffer);
+    for (int i = 0; patterns[i] != NULL; i++) {
+        glob_t glob_result;
+        if (glob(patterns[i], GLOB_MARK, NULL, &glob_result) != 0) continue;
+
+        for (size_t j = 0; j < glob_result.gl_pathc; j++) {
+            char *device = glob_result.gl_pathv[j];
+
+            // Skip partitions like /dev/sda1 or nvme0n1p1
+            char *base = strrchr(device, '/');
+            if (!base) base = device; else base++;
+            if (strchr(base, 'p') || strspn(base, "0123456789") != 0) continue;
+
+            // Only process block devices
+            if (stat(device, &st) != 0 || !S_ISBLK(st.st_mode)) continue;
+
+            // Build command dynamically
+            size_t cmd_len = strlen("sudo ") + strlen(smartctl_path) + strlen(" -a ") +
+                             strlen(device) + strlen(" 2>/dev/null") + 1;
+            char *command = malloc(cmd_len);
+            if (!command) {
+                perror("malloc failed");
+                continue;
+            }
+
+            snprintf(command, cmd_len, "sudo %s -a %s 2>/dev/null", smartctl_path, device);
+
+            printf("\n === S.M.A.R.T. Data for %s ===\n", device);
+            printf("Executing: %s\n\n", command);
+
+            FILE *pipe = popen(command, "r");
+            if (!pipe) {
+                perror("popen failed");
+                free(command);
+                continue;
+            }
+
+            char buffer[256];
+            while (fgets(buffer, sizeof(buffer), pipe) != NULL) {
+                printf("%s", buffer);
+            }
+
+            pclose(pipe);
+            free(command);
+        }
+
+        globfree(&glob_result);
     }
-    pclose(pipe);
 }
 
 void print_device_list(char **devices, int count) {
