@@ -608,6 +608,7 @@ float get_psu_temperature() {
                         
                         float temp = read_temperature_file(temp_path);
                         if (temp >= 0) {
+                            printf("PSU Temperature: %.2f°C\n", temp);
                             fclose(f);
                             closedir(dir);
                             return temp;
@@ -637,6 +638,7 @@ float get_psu_temperature() {
             for (size_t j = 0; j < glob_result.gl_pathc; j++) {
                 float temp = read_temperature_file(glob_result.gl_pathv[j]);
                 if (temp >= 0) {
+                    printf("PSU Temperature: %.2f°C\n", temp);
                     globfree(&glob_result);
                     return temp;
                 }
@@ -682,6 +684,7 @@ float get_psu_temperature() {
         closedir(dir);
     }
     
+    printf("PSU Temperature: Not available\n");
     return -1.0;
 }
 
