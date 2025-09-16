@@ -1753,15 +1753,6 @@ void list_processes() {
     }
 }
 
-void *process_thread(void *arg) {
-    while (!stop) {
-        // Process tree is not displayed in the main table to avoid cluttering
-        // but the process count is already included in the main display
-        sleep(5); // Update every 5 seconds
-    }
-    return NULL;
-}
-
 void show_system_uptime_and_cpu_sleep_time() {
     FILE *fp = fopen("/proc/uptime", "r");
     if (!fp) {
