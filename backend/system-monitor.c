@@ -1005,13 +1005,40 @@ void print_smart_data() {
     }
 }
 
-void print_device_list(char **devices, int count) {
+void print_device_list() {
+    const char *patterns[] = { "/dev/sd*", "/dev/nvme*n*", "/dev/mmcblk*", "/dev/vd*", "/dev/hd*", NULL };
+    int device_index = 0;
+
     printf("Available storage devices:\n");
     printf("=============================\n");
-    
-    for (int i = 0; i < count; i++) {
-        printf("%d. %s\n", i + 1, devices[i]);
+
+    for (int i = 0; patterns[i] != NULL; i++) {
+        glob_t glob_result;
+        if (glob(patterns[i], GLOB_MARK, NULL, &glob_result) != 0) continue;
+
+        for (size_t j = 0; j < glob_result.gl_pathc; j++) {
+            char *device = glob_result.gl_pathv[j];
+
+            // Skip partitions like /dev/sda1 or nvme0n1p1
+            char *base = strrchr(device, '/');
+            if (!base) base = device; else base++;
+            if (strchr(base, 'p') || strspn(base, "0123456789") != 0) continue;
+
+            // Only process block devices
+            struct stat st;
+            if (stat(device, &st) != 0 || !S_ISBLK(st.st_mode)) continue;
+
+            device_index++;
+            printf("%d. %s\n", device_index, device);
+        }
+
+        globfree(&glob_result);
     }
+
+    if (device_index == 0) {
+        printf("No storage devices detected.\n");
+    }
+
     printf("\n");
 }
 
