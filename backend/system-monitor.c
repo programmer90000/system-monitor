@@ -916,31 +916,29 @@ const char *find_smartctl_path() {
 /**
  * Detect all storage devices on the system
  */
-void detect_storage_devices(char ***devices, int *count) {
+void detect_storage_devices() {
     const char *patterns[] = {
         "/dev/sd*", "/dev/nvme*n*", "/dev/mmcblk*", "/dev/vd*", "/dev/hd*", NULL
     };
-    
-    *count = 0;
-    *devices = NULL;
-    
+
     for (int i = 0; patterns[i] != NULL; i++) {
         glob_t glob_result;
-        if (glob(patterns[i], GLOB_MARK, NULL, &glob_result) == 0) {
-            for (size_t j = 0; j < glob_result.gl_pathc; j++) {
-                char *path = glob_result.gl_pathv[j];
-                if (strchr(path, 'p') == NULL && 
-                    strspn(strrchr(path, '/') + 1, "0123456789") == 0) {
-                    struct stat st;
-                    if (stat(path, &st) == 0 && S_ISBLK(st.st_mode)) {
-                        *devices = realloc(*devices, (*count + 1) * sizeof(char *));
-                        (*devices)[*count] = strdup(path);
-                        (*count)++;
-                    }
-                }
-            }
-            globfree(&glob_result);
+        if (glob(patterns[i], GLOB_MARK, NULL, &glob_result) != 0) continue;
+
+        for (size_t j = 0; j < glob_result.gl_pathc; j++) {
+            char *path = glob_result.gl_pathv[j];
+
+            // skip partitions (like nvme0n1p1) and non-numeric devices
+            char *base = strrchr(path, '/');
+            if (!base) base = path; else base++;
+            if (strchr(base, 'p') || strspn(base, "0123456789") != 0) continue;
+
+            struct stat st;
+            if (stat(path, &st) != 0 || !S_ISBLK(st.st_mode)) continue;
+
+            printf("Detected storage device: %s\n", path);
         }
+        globfree(&glob_result);
     }
 }
 
