@@ -526,10 +526,12 @@ float get_chipset_temperature() {
     for (int i = 0; chipset_files[i] != NULL; i++) {
         float temp = read_temperature_file(chipset_files[i]);
         if (temp >= 0) {
+            printf("Chipset Temperature: %.2f°C\n", temp);
             return temp;
         }
     }
 
+    printf("Chipset Temperature: Not avaliable");
     return -1.0;
 }
 
