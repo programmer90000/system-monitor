@@ -18,10 +18,6 @@
 
 volatile sig_atomic_t stop = 0;
 
-/**
- * Signal handler function to gracefully terminate the program
- * Sets the global stop flag when SIGINT or SIGTERM is received
- */
 void handle_signal(int sig) {
     stop = 1;
 }
@@ -825,151 +821,12 @@ int get_process_count() {
     return count;
 }
 
-/**
- * Displays the table header with formatted column titles
- * Uses ANSI escape codes to clear screen and position cursor
- */
-void display_table_header() {
-    printf("\033[2J\033[H"); // Clear screen and move to top
-    printf("╔══════════════════════════════════════════════════════════════════════════════════════════════════════════╗\n");
-    printf("║                                        COMPREHENSIVE SYSTEM MONITOR                                      ║\n");
-    printf("╠══════════════════════════════════════════════════════════════════════════════════════════════════════════╣\n");
-    printf("║ %-20s ║ Current ║  Avg   ║                  History (Most Recent → Oldest)                  ║\n", "Metric");
-    printf("╠═══════════════════════════╬═════════╬════════╬═════════════════════════════════════════════════════════╣\n");
-}
-
-/**
- * Displays the table footer with exit instructions and update information
- */
-void display_table_footer() {
-    printf("╚═══════════════════════════╩═════════╩════════╩═════════════════════════════════════════════════════════╝\n");
-    printf("Press Ctrl+C to exit - Update interval: 1 second - History: 10 samples\n");
-}
-
-/**
- * Displays a single row in the monitoring table with current, average, and historical values
- * Uses ANSI cursor positioning to update specific rows without redrawing entire table
- */
-void display_history_row(const char *label, HistoryBuffer buffer, const char *format, int row) {
-    // Move cursor to the correct row
-    printf("\033[%d;1H", 6 + row);
-    
-    // Clear the entire line
-    printf("\033[K");
-    
-    printf("║ %-20s ║ ", label);
-    
-    // Current value
-    if (buffer.count > 0) {
-        float current = buffer.values[(buffer.index - 1 + HISTORY_SIZE) % HISTORY_SIZE];
-        if (current >= 0) {
-            printf(format, current);
-        } else {
-            printf("  N/A  ");
-        }
-    } else {
-        printf("  N/A  ");
-    }
-    
-    printf(" ║ ");
-    
-    // Average
-    if (buffer.count > 0) {
-        float avg = get_history_average(&buffer);
-        if (avg >= 0) {
-            printf(format, avg);
-        } else {
-            printf("  N/A  ");
-        }
-    } else {
-        printf("  N/A  ");
-    }
-    
-    printf(" ║ ");
-    
-    // History values
-    for (int i = 0; i < HISTORY_SIZE; i++) {
-        int hist_index = (buffer.index - 1 - i + HISTORY_SIZE) % HISTORY_SIZE;
-        if (i < buffer.count && buffer.values[hist_index] >= 0) {
-            printf(format, buffer.values[hist_index]);
-        } else {
-            printf("   -   ");
-        }
-        if (i < HISTORY_SIZE - 1) printf(" ");
-    }
-    
-    printf(" ║");
-}
-
-/**
- * Calculates the total number of rows needed for the display table
- * Includes base metrics, storage devices, and CPU cores
- */
-int calculate_total_rows() {
-    int rows = 12; // Base rows (CPU usage, loads, temps, process count)
-    rows += system_history.storage_count; // Storage devices
-    rows += cpu_data.total_cores; // All cores
-    return rows;
-}
-
-/**
- * Updates the entire display by refreshing all table rows
- * Uses ANSI escape codes for efficient screen updates
- */
-void update_display() {
-    static int first_display = 1;
-    static int total_rows = 0;
-    
-    if (first_display) {
-        display_table_header();
-        total_rows = calculate_total_rows();
-        first_display = 0;
-    }
-    
-    int row = 0;
-    
-    // CPU Usage
-    display_history_row("CPU Usage (%)", system_history.cpu_usage, "%5.1f%%", row++);
-    
-    // Load Averages
-    display_history_row("Load 1min", system_history.load_1min, "%6.2f", row++);
-    display_history_row("Load 5min", system_history.load_5min, "%6.2f", row++);
-    display_history_row("Load 15min", system_history.load_15min, "%6.2f", row++);
-    
-    // Temperatures
-    display_history_row("CPU Temp (°C)", system_history.cpu_temp, "%6.1f", row++);
-    display_history_row("GPU Temp (°C)", system_history.gpu_temp, "%6.1f", row++);
-    display_history_row("VRM Temp (°C)", system_history.vrm_temp, "%6.1f", row++);
-    display_history_row("Chipset Temp (°C)", system_history.chipset_temp, "%6.1f", row++);
-    display_history_row("Motherboard Temp (°C)", system_history.motherboard_temp, "%6.1f", row++);
-    display_history_row("PSU Temp (°C)", system_history.psu_temp, "%6.1f", row++);
-    display_history_row("Case Temp (°C)", system_history.case_temp, "%6.1f", row++);
-    display_history_row("Process Count", system_history.total_processes, "%6.0f", row++);
-    for (int i = 0; i < system_history.storage_count; i++) {
-        char label[32];
-        snprintf(label, sizeof(label), "Storage %d Temp", i);
-        display_history_row(label, system_history.storage_temps[i], "%6.1f", row++);
-    }
-    
-    // Core usage
-    for (int i = 1; i <= cpu_data.total_cores; i++) {
-        char label[32];
-        snprintf(label, sizeof(label), "Core %s", cpu_data.cores[i].cpu_name);
-        display_history_row(label, system_history.core_usage[i], "%5.1f%%", row++);
-    }
-    
-    // Move cursor to the bottom and display footer
-    printf("\033[%d;1H", 6 + total_rows + 1);
-    printf("\033[K");
-    display_table_footer();
-    
-    // Move cursor out of the way
-    printf("\033[%d;1H", 6 + total_rows + 3);
-    fflush(stdout);
-}
 
 #define CMD_BUFFER_SIZE 1024
 
+/**
+ * Find the full path of the smartctl binary for querying S.M.A.R.T. data from drives
+ */
 const char *find_smartctl_path() {
     FILE *pipe;
     char path_buffer[256];
@@ -1006,6 +863,9 @@ const char *find_smartctl_path() {
     return NULL;
 }
 
+/**
+ * Detect all storage devices on the system
+ */
 void detect_storage_devices(char ***devices, int *count) {
     const char *patterns[] = {
         "/dev/sd*", "/dev/nvme*n*", "/dev/mmcblk*", "/dev/vd*", "/dev/hd*", NULL
@@ -1034,6 +894,9 @@ void detect_storage_devices(char ***devices, int *count) {
     }
 }
 
+/**
+ * Run SmartCTL for the selected device and print its report
+ */
 void print_smart_data(const char *smartctl_path, const char *device) {
     char command[CMD_BUFFER_SIZE];
     FILE *pipe;
@@ -1446,8 +1309,6 @@ void check_systemd_user_services() {
     system("systemctl --user list-unit-files --type=service --state=enabled | grep -E '(enabled|autostart)' | head -10");
 }
 
-void show_system_uptime_and_cpu_sleep_time();
-
 void detect_all_package_managers() {
     const char *managers[] = {
         "apt",
@@ -1546,6 +1407,7 @@ void scan_directory(const char *path) {
     closedir(dir);
 }
 
+// List programs installed into standard directories
 void list_manual_installs() {
     printf("Manually installed programs/binaries:\n");
 
@@ -1608,7 +1470,7 @@ void *monitor_system(void *arg) {
     // Initialize CPU core monitoring
     cpu_data.total_cores = get_core_count();
     if (cpu_data.total_cores <= 0) {
-        // printf("Error: Could not determine number of CPU cores\n");
+        printf("Error: Could not determine number of CPU cores\n");
         return NULL;
     }
 
@@ -1618,8 +1480,8 @@ void *monitor_system(void *arg) {
 
     const char *smartctl_path = find_smartctl_path();
     if (smartctl_path == NULL) {
-        // printf("Error: smartctl not found.\n");
-        // printf("Install with: sudo apt install smartmontools\n");
+        printf("Error: smartctl not found.\n");
+        printf("Install with: sudo apt install smartmontools\n");
         return NULL;
     }
 
@@ -1628,16 +1490,16 @@ void *monitor_system(void *arg) {
     detect_storage_devices(&devices, &device_count);
     
     if (device_count == 0) {
-        // printf("No storage devices detected!\n");
+        printf("No storage devices detected!\n");
         return NULL;
     }
 
-    // print_device_list(devices, device_count);
+     print_device_list(devices, device_count);
     
-    // for (int i = 0; i < device_count; i++) {
-        // print_smart_data(smartctl_path, devices[i]);
-        // free(devices[i]);
-    // }
+    for (int i = 0; i < device_count; i++) {
+        print_smart_data(smartctl_path, devices[i]);
+        free(devices[i]);
+    }
     free(devices);
 
     while (!stop) {
@@ -1681,10 +1543,6 @@ void *monitor_system(void *arg) {
             float temp = get_storage_temperature(storage_devices[i].path);
                         add_to_history(&system_history.storage_temps[i], temp);
         }
-        
-        // Update the display
-        // update_display();
-        
         
         sleep(1); // Update every second
     }
