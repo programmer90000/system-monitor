@@ -562,10 +562,12 @@ float get_motherboard_temperature() {
     for (int i = 0; motherboard_files[i] != NULL; i++) {
         float temp = read_temperature_file(motherboard_files[i]);
         if (temp >= 0) {
+            printf("Motherboard Temperature: %.2f°C\n", temp);
             return temp;
         }
     }
 
+    printf("Motherboard Temperature: Not avaliable");
     return -1.0;
 }
 
