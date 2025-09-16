@@ -823,6 +823,14 @@ void find_storage_devices() {
                             strncpy(storage_devices[storage_device_count].name, base, sizeof(storage_devices[0].name)-1);
                             strncpy(storage_devices[storage_device_count].path, temp_path, sizeof(storage_devices[0].path)-1);
                             storage_device_count++;
+
+                            float temp_val = read_temperature_file(temp_path);
+                            if (temp_val >= 0) {
+                                printf("Storage Device Name: %s Temperature: %.2f°C\n", base, temp_val / 1000.0);
+                            } else {
+                                printf("Storage Device Name: %s Temperature: Not available\n", base);
+                            }
+
                             break;
                         }
                     }
