@@ -866,6 +866,8 @@ int get_process_count() {
         }
     }
     closedir(dir);
+
+    printf("Number of running processes: %d\n", count);
     return count;
 }
 
