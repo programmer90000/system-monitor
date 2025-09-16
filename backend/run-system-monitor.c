@@ -43,7 +43,6 @@ void show_system_uptime_and_cpu_sleep_time();
 void detect_all_package_managers();
 void list_manual_installs();
 void read_journal_logs();
-void monitor_system();
 void get_total_jiffies();
 void read_process_stat();
 void read_process_io();
@@ -139,7 +138,6 @@ void display_menu() {
     printf("║ Detect All Package Managers\033[1;34m           ║\n");
     printf("║ List Manual Installs\033[1;34m                  ║\n");
     printf("║ Read Journal Logs\033[1;34m                     ║\n");
-    printf("║ Monitor System\033[1;34m                        ║\n");
     printf("║ Exit\033[1;34m                                  ║\n");
     printf("╚═══════════════════════════════════════╝\n");
     printf("\033[0m"); // Reset text color
@@ -224,8 +222,6 @@ int main() {
             run_function(list_manual_installs, "List Manual Installs");
         } else if (strcmp(input, "Read Journal Logs") == 0) {
             run_function(read_journal_logs, "Read Journal Logs");
-        } else if (strcmp(input, "Monitor System") == 0) {
-            run_function(monitor_system, "Monitor System");         
         } else if (strcmp(input, "exit") == 0) {
             clear_screen();
             printf("\033[1;32m"); // Green text
