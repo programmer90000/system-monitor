@@ -736,6 +736,7 @@ float get_case_temperature() {
                             float temp = read_temperature_file(temp_path);
                             fclose(f);
                             if (temp >= 0) {
+                                printf("Case Temperature: %.2f°C\n", temp);
                                 closedir(dir);
                                 return temp;
                             }
@@ -754,6 +755,7 @@ float get_case_temperature() {
             for (size_t j = 0; j < glob_result.gl_pathc; j++) {
                 float temp = read_temperature_file(glob_result.gl_pathv[j]);
                 if (temp >= 0) {
+                    printf("Case Temperature: %.2f°C\n", temp);
                     globfree(&glob_result);
                     return temp;
                 }
@@ -762,6 +764,7 @@ float get_case_temperature() {
         }
     }
 
+    printf("Case Temperature: Not available\n");
     return -1.0;
 }
 
