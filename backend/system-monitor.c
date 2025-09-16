@@ -459,10 +459,12 @@ float get_gpu_temperature() {
     for (int i = 0; gpu_files[i] != NULL; i++) {
         float temp = read_temperature_file(gpu_files[i]);
         if (temp >= 0) {
+            printf("GPU Temperature: %.2f°C\n", temp);
             return temp;
         }
     }
-    
+
+    printf("GPU Temperature: Not available\n")
     return -1.0;
 }
 
