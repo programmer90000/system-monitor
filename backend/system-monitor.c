@@ -493,10 +493,12 @@ float get_vrm_temperature() {
     for (int i = 0; vrm_files[i] != NULL; i++) {
         float temp = read_temperature_file(vrm_files[i]);
         if (temp >= 0) {
+            printf("VRM Temperature: %.2f°C\n", temp);
             return temp;
         }
     }
 
+    printf("VRM Temperature: Not available\n");
     return -1.0;
 }
 
