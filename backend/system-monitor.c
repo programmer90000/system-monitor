@@ -1694,7 +1694,7 @@ void *monitor_system(void *arg) {
 }
 
 // Calculate total time computer was on in different states
-static long get_total_jiffies() {
+long get_total_jiffies() {
     FILE *f = fopen("/proc/stat", "r");
     if (!f) return -1;
     char cpu[16];
@@ -1705,7 +1705,7 @@ static long get_total_jiffies() {
     return user + nice + system + idle + iowait + irq + softirq + steal;
 }
 
-static void read_process_stat(pid_t pid, unsigned long *utime, unsigned long *stime, long *rss) {
+void read_process_stat(pid_t pid, unsigned long *utime, unsigned long *stime, long *rss) {
     char path[256];
     snprintf(path, sizeof(path), "/proc/%d/stat", pid);
     FILE *f = fopen(path, "r");
@@ -1722,7 +1722,7 @@ static void read_process_stat(pid_t pid, unsigned long *utime, unsigned long *st
     fclose(f);
 }
 
-static void read_process_io(pid_t pid, unsigned long *read_bytes, unsigned long *write_bytes) {
+void read_process_io(pid_t pid, unsigned long *read_bytes, unsigned long *write_bytes) {
     char path[256];
     snprintf(path, sizeof(path), "/proc/%d/io", pid);
     FILE *f = fopen(path, "r");
@@ -1896,21 +1896,4 @@ void show_system_uptime_and_cpu_sleep_time() {
 
     printf("System Uptime: %.2f seconds\n", uptime_seconds);
     printf("CPU Sleep Time: %.2f seconds\n", sleep_seconds);
-}
-
-
-int main() {
-    signal(SIGINT, handle_signal);
-    signal(SIGTERM, handle_signal);
-
-    pthread_t monitor_tid, process_tid;
-
-    pthread_create(&monitor_tid, NULL, monitor_system, NULL);
-    pthread_create(&process_tid, NULL, process_thread, NULL);
-
-    pthread_join(monitor_tid, NULL);
-    pthread_join(process_tid, NULL);
-
-    
-    return 0;
 }
