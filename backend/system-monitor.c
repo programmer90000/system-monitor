@@ -252,6 +252,7 @@ LoadAverage get_load_average() {
 int get_core_count() {
     FILE *file = fopen("/proc/stat", "r");
     if (!file) {
+        printf("Error: could not open /proc/stat\n");
         return -1;
     }
 
@@ -265,6 +266,18 @@ int get_core_count() {
     }
 
     fclose(file);
+
+    if (count < 1) {
+        printf("Error: could not determine CPU core count\n");
+        return -1;
+    }
+
+    // Display the result
+    printf("\nCPU Core Information:\n");
+    printf("---------------------\n");
+    printf(" Total cores: %d\n", count);
+    printf("---------------------\n");
+
     return count;
 }
 
