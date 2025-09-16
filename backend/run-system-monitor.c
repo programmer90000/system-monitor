@@ -41,7 +41,6 @@ void check_startup_directories();
 void check_systemd_user_services();
 void show_system_uptime_and_cpu_sleep_time();
 void detect_all_package_managers();
-void scan_directory();
 void list_manual_installs();
 void read_journal_logs();
 void monitor_system();
@@ -138,7 +137,6 @@ void display_menu() {
     printf("║ Check Systemd User Services\033[1;34m           ║\n");
     printf("║ Show System Uptime And CPU Sleep Time\033[1;34m ║\n");
     printf("║ Detect All Package Managers\033[1;34m           ║\n");
-    printf("║ Scan Directory\033[1;34m                        ║\n");
     printf("║ List Manual Installs\033[1;34m                  ║\n");
     printf("║ Read Journal Logs\033[1;34m                     ║\n");
     printf("║ Monitor System\033[1;34m                        ║\n");
@@ -222,8 +220,6 @@ int main() {
             run_function(show_system_uptime_and_cpu_sleep_time, "Show System Uptime And CPU Sleep Time");
         } else if (strcmp(input, "Detect All Package Managers") == 0) {
             run_function(detect_all_package_managers, "Detect All Package Managers");
-        } else if (strcmp(input, "Scan Directory") == 0) {
-            run_function(scan_directory, "Scan Directory");
         } else if (strcmp(input, "List Manual Installs") == 0) {
             run_function(list_manual_installs, "List Manual Installs");
         } else if (strcmp(input, "Read Journal Logs") == 0) {
