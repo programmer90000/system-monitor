@@ -428,10 +428,12 @@ float get_cpu_temperature() {
     for (int i = 0; thermal_files[i] != NULL; i++) {
         float temp = read_temperature_file(thermal_files[i]);
         if (temp >= 0) {
+            printf("CPU Temperature: %.2f°C\n", temp);  // assuming millidegrees
             return temp;
         }
     }
     
+    printf("CPU Temperature: Not available\n");
     return -1.0;
 }
 
