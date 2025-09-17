@@ -138,6 +138,7 @@ void display_menu() {
     printf("║ Detect All Package Managers\033[1;34m           ║\n");
     printf("║ List Manual Installs\033[1;34m                  ║\n");
     printf("║ Read Journal Logs\033[1;34m                     ║\n");
+    printf("║ Get Total Jiffies\033[1;34m                     ║\n");
     printf("║ Exit\033[1;34m                                  ║\n");
     printf("╚═══════════════════════════════════════╝\n");
     printf("\033[0m"); // Reset text color
@@ -222,6 +223,8 @@ int main() {
             run_function(list_manual_installs, "List Manual Installs");
         } else if (strcmp(input, "Read Journal Logs") == 0) {
             run_function(read_journal_logs, "Read Journal Logs");
+        } else if (strcmp(input, "Get Total Jiffies") == 0) {
+            run_function(get_total_jiffies, "Get Total Jiffies");
         } else if (strcmp(input, "exit") == 0) {
             clear_screen();
             printf("\033[1;32m"); // Green text

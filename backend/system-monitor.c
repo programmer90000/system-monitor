@@ -1580,13 +1580,40 @@ void read_journal_logs() {
 // Calculate total time computer was on in different states
 long get_total_jiffies() {
     FILE *f = fopen("/proc/stat", "r");
-    if (!f) return -1;
+    if (!f) {
+        printf("Error: Could not open /proc/stat\n");
+        return -1;
+    }
+    
     char cpu[16];
     long user, nice, system, idle, iowait, irq, softirq, steal;
-    fscanf(f, "%s %ld %ld %ld %ld %ld %ld %ld %ld",
-           cpu, &user, &nice, &system, &idle, &iowait, &irq, &softirq, &steal);
+    
+    int result = fscanf(f, "%s %ld %ld %ld %ld %ld %ld %ld %ld",
+                       cpu, &user, &nice, &system, &idle, &iowait, &irq, &softirq, &steal);
+    
     fclose(f);
-    return user + nice + system + idle + iowait + irq + softirq + steal;
+    
+    if (result != 9) {
+        printf("Error: Failed to parse /proc/stat content\n");
+        return -1;
+    }
+    
+    long total_jiffies = user + nice + system + idle + iowait + irq + softirq + steal;
+    
+    printf("CPU Statistics from /proc/stat:\n");
+    printf("CPU: %s\n", cpu);
+    printf("User: %ld\n", user);
+    printf("Nice: %ld\n", nice);
+    printf("System: %ld\n", system);
+    printf("Idle: %ld\n", idle);
+    printf("IOWait: %ld\n", iowait);
+    printf("IRQ: %ld\n", irq);
+    printf("SoftIRQ: %ld\n", softirq);
+    printf("Steal: %ld\n", steal);
+    printf("Total Jiffies: %ld\n", total_jiffies);
+    printf("------------------------------\n");
+    
+    return total_jiffies;
 }
 
 void read_process_stat(pid_t pid, unsigned long *utime, unsigned long *stime, long *rss) {
