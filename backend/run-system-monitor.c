@@ -119,7 +119,6 @@ void display_menu() {
     printf("║ Get PSU Temperature\033[1;34m                   ║\n");
     printf("║ Get Case Temperature\033[1;34m                  ║\n");
     printf("║ Find Storage Devices\033[1;34m                  ║\n");
-    printf("║ Get Storage Temperature\033[1;34m               ║\n");
     printf("║ Get Process Count\033[1;34m                     ║\n");
     printf("║ Detect Storage Devices\033[1;34m                ║\n");
     printf("║ Print Smart Data\033[1;34m                      ║\n");
@@ -185,8 +184,6 @@ int main() {
             run_function(get_case_temperature, "Get Case Temperature");
         } else if (strcmp(input, "Find Storage Devices") == 0) {
             run_function(find_storage_devices, "Find Storage Devices");
-        } else if (strcmp(input, "Get Storage Temperature") == 0) {
-            run_function(get_storage_temperature, "Get Storage Temperature");
         } else if (strcmp(input, "Get Process Count") == 0) {
             run_function(get_process_count, "Get Process Count");
         } else if (strcmp(input, "Detect Storage Devices") == 0) {
