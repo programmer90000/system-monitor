@@ -285,29 +285,21 @@ int get_core_count() {
  * Reads CPU statistics for all cores from /proc/stat
  * Stores current statistics and preserves previous for delta calculations
  */
-void read_cpu_stats(CPUData *cpu_data) {
+void read_cpu_stats() {
     FILE *file = fopen("/proc/stat", "r");
     if (!file) {
+        perror("fopen");
         return;
     }
 
     char line[256];
-    int core_count = 0;
 
-    // Store previous stats for calculation (skip if it's the first run)
-    static int first_run = 1;
-    if (!first_run) {
-        for (int i = 0; i <= cpu_data->total_cores; i++) {
-            cpu_data->cores[i].prev_stats = cpu_data->cores[i].stats;
-        }
-    }
-
-    while (fgets(line, sizeof(line), file) && core_count <= cpu_data->total_cores) {
+    while (fgets(line, sizeof(line), file)) {
         if (strncmp(line, "cpu", 3) == 0) {
             CPUStats stats;
             char cpu_label[16];
             
-            int matched = sscanf(line, 
+            int matched = sscanf(line,
                 "%15s %lu %lu %lu %lu %lu %lu %lu %lu",
                 cpu_label,
                 &stats.user, &stats.nice, &stats.system, &stats.idle,
@@ -315,22 +307,14 @@ void read_cpu_stats(CPUData *cpu_data) {
                 &stats.steal);
 
             if (matched >= 4) {
-                strncpy(cpu_data->cores[core_count].cpu_name, cpu_label, sizeof(cpu_data->cores[core_count].cpu_name));
-                cpu_data->cores[core_count].stats = stats;
-                core_count++;
+                printf("%s: user=%lu nice=%lu system=%lu idle=%lu iowait=%lu irq=%lu softirq=%lu steal=%lu\n",
+                       cpu_label, stats.user, stats.nice, stats.system, stats.idle,
+                       stats.iowait, stats.irq, stats.softirq, stats.steal);
             }
         }
     }
 
     fclose(file);
-    
-    if (first_run) {
-        first_run = 0;
-        // For first run, set previous stats equal to current stats
-        for (int i = 0; i <= cpu_data->total_cores; i++) {
-            cpu_data->cores[i].prev_stats = cpu_data->cores[i].stats;
-        }
-    }
 }
 
 /**
