@@ -321,38 +321,74 @@ void read_cpu_stats() {
  * Calculates CPU usage percentages for all cores based on delta between readings
  * Uses the formula: usage = (total_time - idle_time) / total_time * 100%
  */
-void calculate_cpu_usage(CPUData *cpu_data) {
-    for (int i = 0; i <= cpu_data->total_cores; i++) {
-        CPUStats *current = &cpu_data->cores[i].stats;
-        CPUStats *previous = &cpu_data->cores[i].prev_stats;
+void calculate_cpu_usage() {
+    static int first_run = 1;
+    static unsigned long prev_user = 0, prev_nice = 0, prev_system = 0;
+    static unsigned long prev_idle = 0, prev_iowait = 0, prev_irq = 0;
+    static unsigned long prev_softirq = 0, prev_steal = 0;
 
-        unsigned long prev_total = previous->user + previous->nice + previous->system +
-                                 previous->idle + previous->iowait + previous->irq +
-                                 previous->softirq + previous->steal;
-
-        unsigned long current_total = current->user + current->nice + current->system +
-                                    current->idle + current->iowait + current->irq +
-                                    current->softirq + current->steal;
-
-        unsigned long prev_idle = previous->idle + previous->iowait;
-        unsigned long current_idle = current->idle + current->iowait;
-
-        unsigned long total_diff = current_total - prev_total;
-        unsigned long idle_diff = current_idle - prev_idle;
-
-        if (total_diff > 0) {
-            cpu_data->cores[i].usage = 100.0 * (total_diff - idle_diff) / total_diff;
-            
-            // Ensure usage is within bounds
-            if (cpu_data->cores[i].usage < 0.0) cpu_data->cores[i].usage = 0.0;
-            if (cpu_data->cores[i].usage > 100.0) cpu_data->cores[i].usage = 100.0;
-        } else {
-            cpu_data->cores[i].usage = 0.0;
-        }
+    if (!first_run) {
+        sleep(1);
     }
 
-    // Overall usage is the first core (cpu, not cpu0, cpu1, etc.)
-    cpu_data->overall_usage = cpu_data->cores[0].usage;
+    FILE *file = fopen("/proc/stat", "r");
+    if (!file) {
+        printf("Error: Cannot open /proc/stat\n");
+        return;
+    }
+
+    char line[256];
+    unsigned long user, nice, system, idle, iowait, irq, softirq, steal;
+    
+    if (fgets(line, sizeof(line), file)) {
+        if (sscanf(line, "cpu %lu %lu %lu %lu %lu %lu %lu %lu",
+                  &user, &nice, &system, &idle, &iowait, &irq, &softirq, &steal) < 4) {
+            fclose(file);
+            printf("Error: Cannot parse /proc/stat\n");
+            return;
+        }
+    }
+    fclose(file);
+
+    if (first_run) {
+        prev_user = user;
+        prev_nice = nice;
+        prev_system = system;
+        prev_idle = idle;
+        prev_iowait = iowait;
+        prev_irq = irq;
+        prev_softirq = softirq;
+        prev_steal = steal;
+        first_run = 0;
+        printf("CPU Usage: 0.00%% (first measurement)\n");
+        return;
+    }
+
+    unsigned long total_diff = (user - prev_user) + (nice - prev_nice) + 
+                              (system - prev_system) + (idle - prev_idle) +
+                              (iowait - prev_iowait) + (irq - prev_irq) +
+                              (softirq - prev_softirq) + (steal - prev_steal);
+
+    unsigned long idle_diff = (idle - prev_idle) + (iowait - prev_iowait);
+
+    prev_user = user;
+    prev_nice = nice;
+    prev_system = system;
+    prev_idle = idle;
+    prev_iowait = iowait;
+    prev_irq = irq;
+    prev_softirq = softirq;
+    prev_steal = steal;
+
+    if (total_diff > 0) {
+        float usage = 100.0 * (total_diff - idle_diff) / total_diff;
+        
+        if (usage < 0.0) usage = 0.0;
+        if (usage > 100.0) usage = 100.0;
+        
+        printf("CPU Usage: %.2f%%\n", usage);
+        return;
+    }
 }
 
 /**
