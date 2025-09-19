@@ -16,7 +16,7 @@ void get_chipset_temperature();
 void get_motherboard_temperature();
 void get_psu_temperature();
 void get_case_temperature();
-void find_storage_devices();
+void find_storage_devices_with_temperature_reporting();
 void get_storage_temperature();
 void get_process_count();
 void display_table_header();
@@ -25,7 +25,7 @@ void display_history_row();
 void calculate_total_rows();
 void update_display();
 void find_smartctl_path();
-void detect_storage_devices();
+void detect_all_storage_devices();
 void print_smart_data();
 void print_device_list();
 void print_uname_info();
@@ -99,45 +99,45 @@ void run_function(void (*func)(), const char* func_name) {
 // Display a styled menu
 void display_menu() {
     printf("\033[1;34m"); // Set text color to blue
-    printf("╔═══════════════════════════════════════╗\n");
-    printf("║         INTERACTIVE TERMINAL          ║\n");
-    printf("║             APPLICATION               ║\n");
-    printf("╠═══════════════════════════════════════╣\n");
-    printf("║      Commands that can be run:        ║\n");
-    printf("╠═══════════════════════════════════════╣\n");
-    printf("║ Get Load Average\033[1;34m                      ║\n");
-    printf("║ Get Core Count\033[1;34m                        ║\n");
-    printf("║ Read CPU Stats\033[1;34m                        ║\n");
-    printf("║ Calculate CPU Usage\033[1;34m                   ║\n");
-    printf("║ Get CPU Temperature\033[1;34m                   ║\n");
-    printf("║ Get GPU Temperature\033[1;34m                   ║\n");
-    printf("║ Get VRM Temperature\033[1;34m                   ║\n");
-    printf("║ Get Chipset Temperature\033[1;34m               ║\n");
-    printf("║ Get Motherboard Temperature\033[1;34m           ║\n");
-    printf("║ Get PSU Temperature\033[1;34m                   ║\n");
-    printf("║ Get Case Temperature\033[1;34m                  ║\n");
-    printf("║ Find Storage Devices\033[1;34m                  ║\n");
-    printf("║ Get Process Count\033[1;34m                     ║\n");
-    printf("║ Detect Storage Devices\033[1;34m                ║\n");
-    printf("║ Print Smart Data\033[1;34m                      ║\n");
-    printf("║ Print Device List\033[1;34m                     ║\n");
-    printf("║ Print Uname Info\033[1;34m                      ║\n");
-    printf("║ Print Detailed OS Info\033[1;34m                ║\n");
-    printf("║ Print Kernel Details\033[1;34m                  ║\n");
-    printf("║ Print Distribution Info\033[1;34m               ║\n");
-    printf("║ Print Library Versions\033[1;34m                ║\n");
-    printf("║ Print Security Info\033[1;34m                   ║\n");
-    printf("║ Print System Limits\033[1;34m                   ║\n");
-    printf("║ Print OS Summary\033[1;34m                      ║\n");
-    printf("║ Print Startup Directories\033[1;34m             ║\n");
-    printf("║ Check Systemd User Services\033[1;34m           ║\n");
-    printf("║ Show System Uptime And CPU Sleep Time\033[1;34m ║\n");
-    printf("║ Detect All Package Managers\033[1;34m           ║\n");
-    printf("║ List Manual Installs\033[1;34m                  ║\n");
-    printf("║ Read Journal Logs\033[1;34m                     ║\n");
-    printf("║ Get Total Jiffies\033[1;34m                     ║\n");
-    printf("║ Exit\033[1;34m                                  ║\n");
-    printf("╚═══════════════════════════════════════╝\n");
+    printf("╔═════════════════════════════════════════════════╗\n");
+    printf("║               INTERACTIVE TERMINAL              ║\n");
+    printf("║                    APPLICATION                  ║\n");
+    printf("╠═════════════════════════════════════════════════╣\n");
+    printf("║            Commands that can be run:            ║\n");
+    printf("╠═════════════════════════════════════════════════╣\n");
+    printf("║ Get Load Average\033[1;34m                                ║\n");
+    printf("║ Get Core Count\033[1;34m                                  ║\n");
+    printf("║ Read CPU Stats\033[1;34m                                  ║\n");
+    printf("║ Calculate CPU Usage\033[1;34m                             ║\n");
+    printf("║ Get CPU Temperature\033[1;34m                             ║\n");
+    printf("║ Get GPU Temperature\033[1;34m                             ║\n");
+    printf("║ Get VRM Temperature\033[1;34m                             ║\n");
+    printf("║ Get Chipset Temperature\033[1;34m                         ║\n");
+    printf("║ Get Motherboard Temperature\033[1;34m                     ║\n");
+    printf("║ Get PSU Temperature\033[1;34m                             ║\n");
+    printf("║ Get Case Temperature\033[1;34m                            ║\n");
+    printf("║ Find Storage Devices With Temperature Reporting\033[1;34m ║\n");
+    printf("║ Get Process Count\033[1;34m                               ║\n");
+    printf("║ Detect All Storage Devices\033[1;34m                      ║\n");
+    printf("║ Print Smart Data\033[1;34m                                ║\n");
+    printf("║ Print Device List\033[1;34m                               ║\n");
+    printf("║ Print Uname Info\033[1;34m                                ║\n");
+    printf("║ Print Detailed OS Info\033[1;34m                          ║\n");
+    printf("║ Print Kernel Details\033[1;34m                            ║\n");
+    printf("║ Print Distribution Info\033[1;34m                         ║\n");
+    printf("║ Print Library Versions\033[1;34m                          ║\n");
+    printf("║ Print Security Info\033[1;34m                             ║\n");
+    printf("║ Print System Limits\033[1;34m                             ║\n");
+    printf("║ Print OS Summary\033[1;34m                                ║\n");
+    printf("║ Print Startup Directories\033[1;34m                       ║\n");
+    printf("║ Check Systemd User Services\033[1;34m                     ║\n");
+    printf("║ Show System Uptime And CPU Sleep Time\033[1;34m           ║\n");
+    printf("║ Detect All Package Managers\033[1;34m                     ║\n");
+    printf("║ List Manual Installs\033[1;34m                            ║\n");
+    printf("║ Read Journal Logs\033[1;34m                               ║\n");
+    printf("║ Get Total Jiffies\033[1;34m                               ║\n");
+    printf("║ Exit\033[1;34m                                            ║\n");
+    printf("╚═════════════════════════════════════════════════╝\n");
     printf("\033[0m"); // Reset text color
     printf("\nSelect an option (Type the function name or exit): ");
 }
@@ -178,12 +178,12 @@ int main() {
             run_function(get_psu_temperature, "Get PSU Temperature");
         } else if (strcmp(input, "Get Case Temperature") == 0) {
             run_function(get_case_temperature, "Get Case Temperature");
-        } else if (strcmp(input, "Find Storage Devices") == 0) {
-            run_function(find_storage_devices, "Find Storage Devices");
+        } else if (strcmp(input, "Find Storage Devices With Temperature Reporting") == 0) {
+            run_function(find_storage_devices_with_temperature_reporting, "Find Storage Devices With Temperature Reporting");
         } else if (strcmp(input, "Get Process Count") == 0) {
             run_function(get_process_count, "Get Process Count");
-        } else if (strcmp(input, "Detect Storage Devices") == 0) {
-            run_function(detect_storage_devices, "Detect Storage Devices");
+        } else if (strcmp(input, "Detect All Storage Devices") == 0) {
+            run_function(detect_all_storage_devices, "Detect All Storage Devices");
         } else if (strcmp(input, "Print Smart Data") == 0) {
             run_function(print_smart_data, "Print Smart Data");
         } else if (strcmp(input, "Print Device List") == 0) {

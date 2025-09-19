@@ -752,7 +752,7 @@ float get_case_temperature() {
  * Scans /sys/class/hwmon for storage devices (NVMe, SATA, SSD)
  * Populates the global storage_devices array with found devices
  */
-void find_storage_devices() {
+void find_storage_devices_with_temperature_reporting() {
     DIR *dir = opendir("/sys/class/hwmon");
     if (!dir) return;
 
@@ -896,7 +896,7 @@ const char *find_smartctl_path() {
 /**
  * Detect all storage devices on the system
  */
-void detect_storage_devices() {
+void detect_all_storage_devices() {
     const char *patterns[] = {
         "/dev/sd*", "/dev/nvme*n*", "/dev/mmcblk*", "/dev/vd*", "/dev/hd*", NULL
     };
