@@ -218,7 +218,7 @@ int main() {
             run_function(read_journal_logs, "Read Journal Logs");
         } else if (strcmp(input, "Get Total Jiffies") == 0) {
             run_function(get_total_jiffies, "Get Total Jiffies");
-        } else if (strcmp(input, "exit") == 0) {
+        } else if (strcmp(input, "Exit") == 0) {
             clear_screen();
             printf("\033[1;32m"); // Green text
             printf("Thank you for using the application!\n");
