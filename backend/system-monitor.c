@@ -392,46 +392,6 @@ void calculate_cpu_usage() {
 }
 
 /**
- * Calculates overall CPU usage by comparing idle time between two readings
- * Returns -1.0 if unable to read /proc/stat
- */
-float get_cpu_usage() {
-    static unsigned long long last_total = 0, last_idle = 0;
-    FILE *file = fopen("/proc/stat", "r");
-    if (file == NULL) {
-        return -1.0;
-    }
-    
-    char line[256];
-    if (fgets(line, sizeof(line), file) == NULL) {
-        fclose(file);
-        return -1.0;
-    }
-    
-    fclose(file);
-    
-    unsigned long long user, nice, system, idle, iowait, irq, softirq, steal;
-    if (sscanf(line, "cpu  %llu %llu %llu %llu %llu %llu %llu %llu", 
-               &user, &nice, &system, &idle, &iowait, &irq, &softirq, &steal) != 8) {
-        return -1.0;
-    }
-    
-    unsigned long long total = user + nice + system + idle + iowait + irq + softirq + steal;
-    unsigned long long total_diff = total - last_total;
-    unsigned long long idle_diff = idle - last_idle;
-    
-    float usage = 0.0;
-    if (total_diff > 0 && last_total > 0) {
-        usage = 100.0 * (1.0 - (float)idle_diff / total_diff);
-    }
-    
-    last_total = total;
-    last_idle = idle;
-    
-    return usage;
-}
-
-/**
  * Attempts to read CPU temperature from various known thermal zone locations
  * Returns -1.0 if no temperature sensor can be found
  */

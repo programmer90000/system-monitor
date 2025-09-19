@@ -9,7 +9,6 @@ void get_load_average();
 void get_core_count();
 void read_cpu_stats();
 void calculate_cpu_usage();
-void get_cpu_usage();
 void get_cpu_temperature();
 void get_gpu_temperature();
 void get_vrm_temperature();
@@ -110,7 +109,6 @@ void display_menu() {
     printf("║ Get Core Count\033[1;34m                        ║\n");
     printf("║ Read CPU Stats\033[1;34m                        ║\n");
     printf("║ Calculate CPU Usage\033[1;34m                   ║\n");
-    printf("║ Get CPU Usage\033[1;34m                         ║\n");
     printf("║ Get CPU Temperature\033[1;34m                   ║\n");
     printf("║ Get GPU Temperature\033[1;34m                   ║\n");
     printf("║ Get VRM Temperature\033[1;34m                   ║\n");
@@ -166,8 +164,6 @@ int main() {
             run_function(read_cpu_stats, "Read CPU Stats");
         } else if (strcmp(input, "Calculate CPU Usage") == 0) {
             run_function(calculate_cpu_usage, "Calculate CPU Usage");
-        } else if (strcmp(input, "Get CPU Usage") == 0) {
-            run_function(get_cpu_usage, "Get CPU Usage");
         } else if (strcmp(input, "Get CPU Temperature") == 0) {
             run_function(get_cpu_temperature, "Get CPU Temperature");
         } else if (strcmp(input, "Get GPU Temperature") == 0) {
