@@ -1649,73 +1649,162 @@ void show_system_uptime_and_cpu_sleep_time() {
 }
 
 #define MAX_BUFFER 1024
+#define MAX_OUTPUT_SIZE 65536
+
+typedef struct {
+    char cpu_info[MAX_OUTPUT_SIZE];
+    char memory_info[MAX_OUTPUT_SIZE];
+    char storage_info[MAX_OUTPUT_SIZE];
+    char motherboard_info[MAX_OUTPUT_SIZE];
+    char bios_info[MAX_OUTPUT_SIZE];
+    char pci_info[MAX_OUTPUT_SIZE];
+    char usb_info[MAX_OUTPUT_SIZE];
+    char network_info[MAX_OUTPUT_SIZE];
+    char kernel_info[MAX_OUTPUT_SIZE];
+    char system_info[MAX_OUTPUT_SIZE];
+} HardwareData;
+
+char* run_command(const char *command) {
+    static char output[MAX_OUTPUT_SIZE];
+    output[0] = '\0';
+    
+    FILE *fp = popen(command, "r");
+    if (fp == NULL) {
+        snprintf(output, sizeof(output), "Command not available: %s", command);
+        return output;
+    }
+    
+    char buffer[MAX_BUFFER];
+    size_t total_size = 0;
+    
+    while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+        size_t buffer_len = strlen(buffer);
+        if (total_size + buffer_len < MAX_OUTPUT_SIZE - 1) {
+            strcat(output, buffer);
+            total_size += buffer_len;
+        }
+    }
+    
+    pclose(fp);
+    return output;
+}
+
+void display_section(const char *title, const char *content) {
+    printf("\n\033[1;34m%s\033[0m\n", title);
+    printf("\033[1;32m");
+    for (int i = 0; i < strlen(title); i++) printf("=");
+    printf("\033[0m\n");
+    
+    if (content && strlen(content) > 0) {
+        printf("%s\n", content);
+    } else {
+        printf("Information not available\n");
+    }
+}
+
+void collect_hardware_data(HardwareData *data) {
+    // Initialize all buffers
+    memset(data, 0, sizeof(HardwareData));
+    
+    // CPU Information (combine multiple sources)
+    char *lscpu_output = run_command("lscpu 2>/dev/null");
+    char *cpuinfo_output = run_command("cat /proc/cpuinfo | grep 'model name\\|cpu cores\\|cpu MHz' | head -10 2>/dev/null");
+    snprintf(data->cpu_info, sizeof(data->cpu_info), 
+             "CPU Details:\n%s\n\nProcessor Information:\n%s", 
+             lscpu_output, cpuinfo_output);
+    
+    // Memory Information (combine multiple sources)
+    char *free_output = run_command("free -h 2>/dev/null");
+    char *meminfo_output = run_command("cat /proc/meminfo | head -15 2>/dev/null");
+    char *dmi_memory = run_command("sudo dmidecode -t memory 2>/dev/null | head -30");
+    snprintf(data->memory_info, sizeof(data->memory_info),
+             "Memory Usage:\n%s\n\nMemory Details:\n%s\n\nDMI Memory Info:\n%s",
+             free_output, meminfo_output, dmi_memory);
+    
+    // Storage Information
+    char *lsblk_output = run_command("lsblk -o NAME,SIZE,TYPE,MOUNTPOINT,FSTYPE,MODEL 2>/dev/null");
+    char *df_output = run_command("df -h -T 2>/dev/null");
+    snprintf(data->storage_info, sizeof(data->storage_info),
+             "Block Devices:\n%s\n\nDisk Usage:\n%s",
+             lsblk_output, df_output);
+    
+    // Motherboard Information
+    char *baseboard = run_command("sudo dmidecode -t baseboard 2>/dev/null");
+    char *chassis = run_command("sudo dmidecode -t chassis 2>/dev/null");
+    snprintf(data->motherboard_info, sizeof(data->motherboard_info),
+             "Baseboard:\n%s\n\nChassis:\n%s",
+             baseboard, chassis);
+    
+    // BIOS Information
+    char *bios = run_command("sudo dmidecode -t bios 2>/dev/null");
+    snprintf(data->bios_info, sizeof(data->bios_info), "%s", bios);
+    
+    // PCI Devices
+    char *lspci = run_command("lspci 2>/dev/null");
+    snprintf(data->pci_info, sizeof(data->pci_info), "%s", lspci);
+    
+    // USB Devices
+    char *lsusb = run_command("lsusb 2>/dev/null");
+    snprintf(data->usb_info, sizeof(data->usb_info), "%s", lsusb);
+    
+    // Network Information
+    char *network = run_command("ip link show 2>/dev/null");
+    snprintf(data->network_info, sizeof(data->network_info), "%s", network);
+    
+    // Kernel Information
+    char *lsmod = run_command("lsmod | head -20 2>/dev/null");
+    snprintf(data->kernel_info, sizeof(data->kernel_info), "%s", lsmod);
+    
+    // System Overview
+    char *lshw = run_command("sudo lshw -short 2>/dev/null | head -20");
+    char *hostname = run_command("hostnamectl 2>/dev/null");
+    snprintf(data->system_info, sizeof(data->system_info),
+             "System Overview:\n%s\n\nHost Information:\n%s",
+             lshw, hostname);
+}
 
 void display_hardware_info() {
-    // Helper function to run commands
-    void run_command(const char *command, const char *description) {
-        printf("\n\033[1;34m%s\033[0m\n", description);
-        printf("\033[1;32m");
-        for (int i = 0; i < strlen(description); i++) printf("=");
-        printf("\033[0m\n");
-        
-        FILE *fp = popen(command, "r");
-        if (fp == NULL) {
-            printf("Failed to run command: %s\n", command);
-            return;
-        }
-        
-        char buffer[MAX_BUFFER];
-        while (fgets(buffer, sizeof(buffer), fp) != NULL) {
-            printf("%s", buffer);
-        }
-        
-        pclose(fp);
-        printf("\n");
-    }
-
-    printf("===============================================================================================================================================");
-    run_command("sudo lshw", "SYSTEM HARDWARE OVERVIEW (COMPLETE)");
-    printf("===============================================================================================================================================");
-    run_command("sudo lspci -vvv", "PCI DEVICES DETAILED INFORMATION");
-    printf("===============================================================================================================================================");
-    run_command("sudo lsusb -v", "USB DEVICES DETAILED INFORMATION");
-    printf("===============================================================================================================================================");
-    run_command("sudo dmidecode", "COMPLETE DMI INFORMATION");
-    printf("===============================================================================================================================================");
-    run_command("sudo dmidecode -t baseboard", "MOTHERBOARD INFORMATION (DMI)");
-    printf("===============================================================================================================================================");
-    run_command("sudo dmidecode -t memory", "MEMORY INFORMATION (DMI)");
-    printf("===============================================================================================================================================");
-    run_command("lscpu -e", "CPU DETAILED INFORMATION (EXTENDED)");
-    printf("===============================================================================================================================================");
-    run_command("lsblk -a -o NAME,SIZE,TYPE,MOUNTPOINT,FSTYPE,MODEL,SERIAL,STATE", "STORAGE DEVICES COMPLETE INFORMATION");
-    printf("===============================================================================================================================================");
-    run_command("df -a -T", "COMPLETE DISK USAGE INFORMATION");
-    printf("===============================================================================================================================================");
-    run_command("sudo hwinfo --short", "HARDWARE DETECTION (COMPLETE)");
-    printf("===============================================================================================================================================");
-    run_command("lsmod", "LOADED KERNEL MODULES");
-    printf("===============================================================================================================================================");
-    run_command("sudo lscpu -x", "CPU INFORMATION (EXTENDED)");
-    printf("===============================================================================================================================================");
-    run_command("free -h", "MEMORY USAGE INFORMATION");
-    printf("===============================================================================================================================================");
-    run_command("cat /proc/cpuinfo", "CPU INFO FROM /PROC");
-    printf("===============================================================================================================================================");
-    run_command("cat /proc/meminfo", "MEMORY INFO FROM /PROC");
-    printf("===============================================================================================================================================");
-    run_command("sudo smartctl --scan", "STORAGE HEALTH INFORMATION");
-    printf("===============================================================================================================================================");
-    run_command("ip link show", "NETWORK INTERFACES");
-    printf("===============================================================================================================================================");
-    run_command("sudo dmidecode -t bios", "BIOS INFORMATION");
-    printf("===============================================================================================================================================");
-    run_command("sudo dmidecode -t processor", "PROCESSOR DETAILS");
-    printf("===============================================================================================================================================");
-    run_command("sudo dmidecode -t chassis", "CHASSIS INFORMATION");
-    printf("===============================================================================================================================================");
-    run_command("inxi -Fxxxz", "COMPREHENSIVE SYSTEM INFORMATION");
-    printf("===============================================================================================================================================");
-    run_command("hwinfo --all", "ALL HARDWARE INFORMATION");
-    printf("===============================================================================================================================================");
+    HardwareData data;
+    collect_hardware_data(&data);
+    
+    printf("\033[1;35m");
+    printf("================================================================================\n");
+    printf("                         SYSTEM HARDWARE INFORMATION\n");
+    printf("================================================================================\n");
+    printf("\033[0m");
+    
+    // System Overview
+    display_section("SYSTEM OVERVIEW", data.system_info);
+    
+    // Processor Section
+    display_section("PROCESSOR INFORMATION", data.cpu_info);
+    
+    // Memory Section
+    display_section("MEMORY INFORMATION", data.memory_info);
+    
+    // Storage Section
+    display_section("STORAGE DEVICES", data.storage_info);
+    
+    // Motherboard & BIOS Section
+    char mobo_bios[MAX_OUTPUT_SIZE];
+    snprintf(mobo_bios, sizeof(mobo_bios), 
+             "Motherboard Information:\n%s\n\nBIOS Information:\n%s",
+             data.motherboard_info, data.bios_info);
+    display_section("MOTHERBOARD & BIOS", mobo_bios);
+    
+    // Hardware Devices Section
+    char devices_info[MAX_OUTPUT_SIZE];
+    snprintf(devices_info, sizeof(devices_info),
+             "PCI Devices:\n%s\n\nUSB Devices:\n%s\n\nNetwork Interfaces:\n%s",
+             data.pci_info, data.usb_info, data.network_info);
+    display_section("HARDWARE DEVICES", devices_info);
+    
+    // Kernel Section
+    display_section("KERNEL INFORMATION", data.kernel_info);
+    
+    printf("\033[1;35m");
+    printf("================================================================================\n");
+    printf("                         END OF SYSTEM INFORMATION\n");
+    printf("================================================================================\n");
+    printf("\033[0m");
 }
