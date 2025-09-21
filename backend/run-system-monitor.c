@@ -48,6 +48,7 @@ void read_process_io();
 void list_processes();
 void process_thread();
 void show_system_uptime_and_cpu_sleep_time();
+void display_hardware_info();
 
 // Clear screen function
 void clear_screen() {
@@ -136,6 +137,7 @@ void display_menu() {
     printf("║ List Manual Installs\033[1;34m                            ║\n");
     printf("║ Read Journal Logs\033[1;34m                               ║\n");
     printf("║ Get Total Jiffies\033[1;34m                               ║\n");
+    printf("║ Display Hardware Info\033[1;34m                           ║\n");
     printf("║ Exit\033[1;34m                                            ║\n");
     printf("╚═════════════════════════════════════════════════╝\n");
     printf("\033[0m"); // Reset text color
@@ -218,6 +220,8 @@ int main() {
             run_function(read_journal_logs, "Read Journal Logs");
         } else if (strcmp(input, "Get Total Jiffies") == 0) {
             run_function(get_total_jiffies, "Get Total Jiffies");
+        } else if (strcmp(input, "Display Hardware Info") == 0) {
+            run_function(display_hardware_info, "Display Hardware Info");
         } else if (strcmp(input, "Exit") == 0) {
             clear_screen();
             printf("\033[1;32m"); // Green text
