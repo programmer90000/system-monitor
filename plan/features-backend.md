@@ -8,7 +8,7 @@
 | SSD/ HDD Temperature Monitoring          | Monitor the SSD/ HDD temperature                                                                            | ✅        |
 | Power Supply Unit Temperature Monitoring | Monitor the power supply unit temperature                                                                   | ✅        |
 | Case Temperature Monitoring              | Monitor the case temperature                                                                                | ✅        |
-| CPU Utilization                          | Monitor the CPU utilization                                                                                 | ❌        |
+| CPU Utilization                          | Monitor the CPU utilization                                                                                 | ✅        |
 | Fan Speed                                | Monitor the fan rotational speed (RPM)                                                                      | ❌        |
 | System Load Averages                     | Calculate the 1, 5, and 15-minute system load averages to show overall system pressure over time            | ✅        |
 | Process Resource Usage                   | Monitor all of the resources used by each process                                                           | ❌        |
