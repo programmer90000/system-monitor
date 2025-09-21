@@ -134,6 +134,12 @@ typedef struct {
     int storage_count;
 } SystemHistory;
 
+struct cpu_stats {
+    unsigned long long utime;
+    unsigned long long stime;
+    unsigned long long total_time;
+};
+
 // Global variables
 StorageDevice *storage_devices = NULL;
 int storage_device_count = 0;
@@ -841,6 +847,46 @@ float get_storage_temperature(const char *path) {
     return read_temperature_file(path);
 }
 
+// Read total CPU jiffies from /proc/stat
+unsigned long long get_total_cpu_time() {
+    FILE *fp = fopen("/proc/stat", "r");
+    if (!fp) return 0;
+
+    char buffer[1024];
+    unsigned long long user, nice, system, idle, iowait, irq, softirq, steal;
+    fgets(buffer, sizeof(buffer), fp);
+    sscanf(buffer, "cpu %llu %llu %llu %llu %llu %llu %llu %llu",
+           &user, &nice, &system, &idle, &iowait, &irq, &softirq, &steal);
+    fclose(fp);
+
+    return user + nice + system + idle + iowait + irq + softirq + steal;
+}
+
+// Read process utime + stime from /proc/<pid>/stat
+int get_proc_cpu_time(const char *pid_str, unsigned long long *utime, unsigned long long *stime) {
+    char path[256];
+    snprintf(path, sizeof(path), "/proc/%s/stat", pid_str);
+
+    FILE *fp = fopen(path, "r");
+    if (!fp) return -1;
+
+    int dummy;
+    char comm[256], state;
+    unsigned long long _utime, _stime;
+
+    fscanf(fp, "%d %s %c", &dummy, comm, &state);
+
+    // skip fields until 14,15
+    for (int i = 4; i <= 13; i++) fscanf(fp, "%*s");
+    fscanf(fp, "%llu %llu", &_utime, &_stime);
+
+    fclose(fp);
+
+    *utime = _utime;
+    *stime = _stime;
+    return 0;
+}
+
 /**
  * Counts the number of running processes by scanning /proc directory
  * Returns -1 if /proc cannot be accessed
@@ -848,29 +894,59 @@ float get_storage_temperature(const char *path) {
 int display_running_processes() {
     DIR *dir = opendir("/proc");
     if (!dir) return -1;
-    
-    printf("%-8s %-8s %-20s %s\n", "PID", "PPID", "STAT", "COMMAND");
-    printf("------------------------------------------------------------\n");
-    
-    int count = 0;
+
+    // First snapshot
     struct dirent *entry;
+    unsigned long long total1 = get_total_cpu_time();
+
+    // Store per-PID cpu times
+    struct {
+        char pid[32];
+        unsigned long long utime;
+        unsigned long long stime;
+    } procs[32768]; // supports up to ~32k processes
+    int proc_count = 0;
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (isdigit(entry->d_name[0])) {
+            unsigned long long utime, stime;
+            if (get_proc_cpu_time(entry->d_name, &utime, &stime) == 0) {
+                strcpy(procs[proc_count].pid, entry->d_name);
+                procs[proc_count].utime = utime;
+                procs[proc_count].stime = stime;
+                proc_count++;
+            }
+        }
+    }
+
+    // Sleep 1 second
+    sleep(1);
+
+    // Second snapshot
+    rewinddir(dir);
+    unsigned long long total2 = get_total_cpu_time();
+
+    printf("%-8s %-8s %-8s %-10s %-20s %s\n",
+           "PID", "PPID", "CPU%", "RAM(KB)", "STAT", "COMMAND");
+    printf("-----------------------------------------------------------------------------\n");
+
+    int count = 0;
     while ((entry = readdir(dir)) != NULL) {
         if (isdigit(entry->d_name[0])) {
             count++;
-            
-            char path[256];
-            char buffer[1024];
+
+            char path[256], buffer[1024];
             FILE *fp;
-            
-            // Get process status
+            pid_t pid = 0, ppid = 0;
+            char name[256] = "Unknown";
+            char state[10] = "Unknown";
+            long ram_kb = 0;
+            double cpu_percent = 0.0;
+
+            // Parse /proc/<pid>/status
             snprintf(path, sizeof(path), "/proc/%s/status", entry->d_name);
             fp = fopen(path, "r");
-            
             if (fp) {
-                pid_t pid = 0, ppid = 0;
-                char name[256] = "Unknown";
-                char state[10] = "Unknown";
-                
                 while (fgets(buffer, sizeof(buffer), fp)) {
                     if (strncmp(buffer, "Name:", 5) == 0) {
                         sscanf(buffer + 5, "%s", name);
@@ -880,19 +956,36 @@ int display_running_processes() {
                         sscanf(buffer + 4, "%d", &pid);
                     } else if (strncmp(buffer, "PPid:", 5) == 0) {
                         sscanf(buffer + 5, "%d", &ppid);
+                    } else if (strncmp(buffer, "VmRSS:", 6) == 0) {
+                        sscanf(buffer + 6, "%ld", &ram_kb);
                     }
                 }
                 fclose(fp);
-                
-                printf("%-8d %-8d %-20s %s\n", pid, ppid, state, name);
-            } else {
-                printf("%-8s %-8s %-20s %s\n", entry->d_name, "N/A", "N/A", "Unknown");
             }
+
+            // Second snapshot CPU time
+            unsigned long long utime2, stime2;
+            if (get_proc_cpu_time(entry->d_name, &utime2, &stime2) == 0) {
+                // Find old snapshot
+                for (int i = 0; i < proc_count; i++) {
+                    if (strcmp(procs[i].pid, entry->d_name) == 0) {
+                        unsigned long long utime1 = procs[i].utime;
+                        unsigned long long stime1 = procs[i].stime;
+                        unsigned long long delta_proc = (utime2 + stime2) - (utime1 + stime1);
+                        unsigned long long delta_total = total2 - total1;
+                        if (delta_total > 0)
+                            cpu_percent = (100.0 * delta_proc) / delta_total;
+                        break;
+                    }
+                }
+            }
+
+            printf("%-8d %-8d %-8.2f %-10ld %-20s %s\n",
+                   pid, ppid, cpu_percent, ram_kb, state, name);
         }
     }
-    
-    closedir(dir);
 
+    closedir(dir);
     printf("\nNumber of running processes: %d\n", count);
     return count;
 }
