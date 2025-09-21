@@ -845,20 +845,55 @@ float get_storage_temperature(const char *path) {
  * Counts the number of running processes by scanning /proc directory
  * Returns -1 if /proc cannot be accessed
  */
-int get_process_count() {
+int display_running_processes() {
     DIR *dir = opendir("/proc");
     if (!dir) return -1;
+    
+    printf("%-8s %-8s %-20s %s\n", "PID", "PPID", "STAT", "COMMAND");
+    printf("------------------------------------------------------------\n");
     
     int count = 0;
     struct dirent *entry;
     while ((entry = readdir(dir)) != NULL) {
         if (isdigit(entry->d_name[0])) {
             count++;
+            
+            char path[256];
+            char buffer[1024];
+            FILE *fp;
+            
+            // Get process status
+            snprintf(path, sizeof(path), "/proc/%s/status", entry->d_name);
+            fp = fopen(path, "r");
+            
+            if (fp) {
+                pid_t pid = 0, ppid = 0;
+                char name[256] = "Unknown";
+                char state[10] = "Unknown";
+                
+                while (fgets(buffer, sizeof(buffer), fp)) {
+                    if (strncmp(buffer, "Name:", 5) == 0) {
+                        sscanf(buffer + 5, "%s", name);
+                    } else if (strncmp(buffer, "State:", 6) == 0) {
+                        sscanf(buffer + 6, "%s", state);
+                    } else if (strncmp(buffer, "Pid:", 4) == 0) {
+                        sscanf(buffer + 4, "%d", &pid);
+                    } else if (strncmp(buffer, "PPid:", 5) == 0) {
+                        sscanf(buffer + 5, "%d", &ppid);
+                    }
+                }
+                fclose(fp);
+                
+                printf("%-8d %-8d %-20s %s\n", pid, ppid, state, name);
+            } else {
+                printf("%-8s %-8s %-20s %s\n", entry->d_name, "N/A", "N/A", "Unknown");
+            }
         }
     }
+    
     closedir(dir);
 
-    printf("Number of running processes: %d\n", count);
+    printf("\nNumber of running processes: %d\n", count);
     return count;
 }
 

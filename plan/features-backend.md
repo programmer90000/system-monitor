@@ -11,7 +11,7 @@
 | CPU Utilization                          | Monitor the CPU utilization                                                                                 | ✅        |
 | Fan Speed                                | Monitor the fan rotational speed (RPM)                                                                      | ❌        |
 | System Load Averages                     | Calculate the 1, 5, and 15-minute system load averages to show overall system pressure over time            | ✅        |
-| Process Resource Usage                   | Monitor all of the resources used by each process                                                           | ❌        |
+| Process Resource Usage                   | Monitor all of the resources used by each process                                                           | ✅        |
 | Process Resource History                 | Measure the CPU and memory usage of each process over the last few minutes to identify spikes               | ❌        |
 | Process Dependencies Tree                | A map showing the parent-child relationships between running processes                                      | ❌        |
 | Process File Activity                    | Show all files and network connections currently open by a specific process                                 | ❌        |

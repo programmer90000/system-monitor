@@ -18,7 +18,7 @@ void get_psu_temperature();
 void get_case_temperature();
 void find_storage_devices_with_temperature_reporting();
 void get_storage_temperature();
-void get_process_count();
+void display_running_processes();
 void display_table_header();
 void display_table_footer();
 void display_history_row();
@@ -119,7 +119,7 @@ void display_menu() {
     printf("║ Get PSU Temperature\033[1;34m                             ║\n");
     printf("║ Get Case Temperature\033[1;34m                            ║\n");
     printf("║ Find Storage Devices With Temperature Reporting\033[1;34m ║\n");
-    printf("║ Get Process Count\033[1;34m                               ║\n");
+    printf("║ Display Running Processes\033[1;34m                       ║\n");
     printf("║ Detect All Storage Devices\033[1;34m                      ║\n");
     printf("║ Print Smart Data\033[1;34m                                ║\n");
     printf("║ Print Device List\033[1;34m                               ║\n");
@@ -184,8 +184,8 @@ int main() {
             run_function(get_case_temperature, "Get Case Temperature");
         } else if (strcmp(input, "Find Storage Devices With Temperature Reporting") == 0) {
             run_function(find_storage_devices_with_temperature_reporting, "Find Storage Devices With Temperature Reporting");
-        } else if (strcmp(input, "Get Process Count") == 0) {
-            run_function(get_process_count, "Get Process Count");
+        } else if (strcmp(input, "Display Running Processes") == 0) {
+            run_function(display_running_processes, "Display Running Processes");
         } else if (strcmp(input, "Detect All Storage Devices") == 0) {
             run_function(detect_all_storage_devices, "Detect All Storage Devices");
         } else if (strcmp(input, "Print Smart Data") == 0) {
