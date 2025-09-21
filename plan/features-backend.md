@@ -1,14 +1,14 @@
 | Feature                                  | Description                                                                                                 | Completed |
 |------------------------------------------|-------------------------------------------------------------------------------------------------------------|-----------|
-| CPU Temperature Monitoring               | Monitor the CPU temperature monitoring                                                                      | ✅        |
-| GPU Temperature Monitoring               | Monitor the GPU temperature monitoring                                                                      | ✅        |
-| VRM Temperature Monitoring               | Monitor the VRM temperature monitoring                                                                      | ✅        |
-| Chipset Temperature Monitoring           | Monitor the chipset temperature monitoring                                                                  | ✅        |
-| Motherboard Temperature Monitoring       | Monitor the motherboard temperature monitoring                                                              | ✅        |
-| SSD/ HDD Temperature Monitoring          | Monitor the SSD/ HDD temperature monitoring                                                                 | ✅        |
-| Power Supply Unit Temperature Monitoring | Monitor the power supply unit temperature monitoring                                                        | ✅        |
-| Case Temperature Monitoring              | Monitor the case temperature monitoring                                                                     | ✅        |
-| CPU Utilization                          | Monitor the CPU utilization monitoring                                                                      | ❌        |
+| CPU Temperature Monitoring               | Monitor the CPU temperature                                                                                 | ✅        |
+| GPU Temperature Monitoring               | Monitor the GPU temperature                                                                                 | ✅        |
+| VRM Temperature Monitoring               | Monitor the VRM temperature                                                                                 | ✅        |
+| Chipset Temperature Monitoring           | Monitor the chipset temperature                                                                             | ✅        |
+| Motherboard Temperature Monitoring       | Monitor the motherboard temperature                                                                         | ✅        |
+| SSD/ HDD Temperature Monitoring          | Monitor the SSD/ HDD temperature                                                                            | ✅        |
+| Power Supply Unit Temperature Monitoring | Monitor the power supply unit temperature                                                                   | ✅        |
+| Case Temperature Monitoring              | Monitor the case temperature                                                                                | ✅        |
+| CPU Utilization                          | Monitor the CPU utilization                                                                                 | ❌        |
 | Fan Speed                                | Monitor the fan rotational speed (RPM)                                                                      | ❌        |
 | System Load Averages                     | Calculate the 1, 5, and 15-minute system load averages to show overall system pressure over time            | ✅        |
 | Process Resource Usage                   | Monitor all of the resources used by each process                                                           | ❌        |
