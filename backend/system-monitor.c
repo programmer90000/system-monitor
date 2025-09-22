@@ -2297,3 +2297,13 @@ void check_firewall() {
     int overall_status = iptables_active || nftables_active || ufw_active;
     printf("\nOverall firewall status: %s\n", overall_status ? "ACTIVE" : "INACTIVE");
 }
+
+void show_logged_in_users() {
+    char* result = run_command("w");
+    if (result) {
+        printf("Logged in users:\n%s\n", result);
+    }
+    else {
+        printf("Failed to get logged in users.\n");
+    }
+}

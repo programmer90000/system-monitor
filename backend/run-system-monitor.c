@@ -51,6 +51,7 @@ void show_system_uptime_and_cpu_sleep_time();
 void display_hardware_info();
 void monitor_cpu_utilization();
 void check_firewall();
+void show_logged_in_users();
 
 // Clear screen function
 void clear_screen() {
@@ -142,6 +143,7 @@ void display_menu() {
     printf("║ Display Hardware Info\033[1;34m                           ║\n");
     printf("║ Monitor CPU Utilization\033[1;34m                         ║\n");
     printf("║ Check Firewall\033[1;34m                                  ║\n");
+    printf("║ Show Logged In Users\033[1;34m                            ║\n");
     printf("║ Exit\033[1;34m                                            ║\n");
     printf("╚═════════════════════════════════════════════════╝\n");
     printf("\033[0m"); // Reset text color
@@ -230,6 +232,8 @@ int main() {
             run_function(monitor_cpu_utilization, "Monitor CPU Utilization");
         } else if (strcmp(input, "Check Firewall") == 0) {
             run_function(check_firewall, "Check Firewall");
+        } else if (strcmp(input, "Show Logged In Users") == 0) {
+            run_function(show_logged_in_users, "Show Logged In Users");
         } else if (strcmp(input, "Exit") == 0) {
             clear_screen();
             printf("\033[1;32m"); // Green text
