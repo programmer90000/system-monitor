@@ -24,7 +24,6 @@
 | Internet Speed Test                      | An integrated tool to measure download and upload bandwidth                                                 | ❌        |
 | Firewall Status                          | A clear indicator showing whether the system's firewall is active or inactive                               | ✅        |
 | Failed Login Attempts                    | A security log showing the number and source of recent failed login attempts                                | ❌        |
-| Sudo History                             | A log of all commands recently executed with administrative (sudo) privileges                               | ❌        |
 | User Session Overview                    | A list of all users currently logged into the system                                                        | ✅        |
 | System Log Viewer                        | A Real-time log tailing, viewing, and filtering system logs                                                 | ✅        |
 | System Information Summary               | A concise overview of key hardware details (CPU model, RAM size, GPU model, etc.)                           | ✅        |
