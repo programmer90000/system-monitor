@@ -27,5 +27,5 @@
 | Sudo History                             | A log of all commands recently executed with administrative (sudo) privileges                               | ❌        |
 | User Session Overview                    | A list of all users currently logged into the system                                                        | ✅        |
 | System Log Viewer                        | A Real-time log tailing, viewing, and filtering system logs                                                 | ✅        |
-| System Information Summary               | A concise overview of key hardware details (CPU model, RAM size, GPU model, etc.)                           | ❌        |
+| System Information Summary               | A concise overview of key hardware details (CPU model, RAM size, GPU model, etc.)                           | ✅        |
 | OS Information                           | Displays operating system name, version, kernel version, and desktop environment                            | ✅        |
