@@ -2253,3 +2253,47 @@ void monitor_cpu_utilization() {
         sleep(1);
     }
 }
+
+void check_firewall() {
+    FILE *fp;
+    char buffer[256];
+    int iptables_active = 0;
+    int nftables_active = 0;
+    int ufw_active = 0;
+    
+    printf("Firewall Status:\n");
+    
+    // Check iptables
+    fp = popen("iptables -L -n 2>/dev/null | head -n 10 | wc -l", "r");
+    if (fp != NULL) {
+        if (fgets(buffer, sizeof(buffer), fp) != NULL) {
+            iptables_active = (atoi(buffer) > 3);
+        }
+        pclose(fp);
+    }
+    printf("iptables: %s\n", iptables_active ? "ACTIVE" : "inactive");
+    
+    // Check nftables
+    fp = popen("nft list ruleset 2>/dev/null | head -n 5 | wc -l", "r");
+    if (fp != NULL) {
+        if (fgets(buffer, sizeof(buffer), fp) != NULL) {
+            nftables_active = (atoi(buffer) > 1);
+        }
+        pclose(fp);
+    }
+    printf("nftables: %s\n", nftables_active ? "ACTIVE" : "inactive");
+    
+    // Check UFW
+    fp = popen("which ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q active && echo 1 || echo 0", "r");
+    if (fp != NULL) {
+        if (fgets(buffer, sizeof(buffer), fp) != NULL) {
+            ufw_active = atoi(buffer);
+        }
+        pclose(fp);
+    }
+    printf("UFW: %s\n", ufw_active ? "ACTIVE" : "inactive");
+    
+    // Overall status
+    int overall_status = iptables_active || nftables_active || ufw_active;
+    printf("\nOverall firewall status: %s\n", overall_status ? "ACTIVE" : "INACTIVE");
+}
