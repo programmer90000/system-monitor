@@ -2307,3 +2307,49 @@ void show_logged_in_users() {
         printf("Failed to get logged in users.\n");
     }
 }
+
+int view_system_logs() {
+    printf("System Log Viewer\n");
+    printf("=================\n\n");
+    
+    printf("Current user UID: %d\n", getuid());
+    printf("Current user GID: %d\n\n", getgid());
+    
+    // Try different methods to read logs
+    const char *commands[] = {
+        "journalctl -n 30 --no-pager",
+        "dmesg | tail -30",
+        "cat /var/log/syslog 2>/dev/null | tail -20",
+        "cat /var/log/messages 2>/dev/null | tail -20",
+        "cat /var/log/auth.log 2>/dev/null | tail -20",
+        "cat /var/log/kern.log 2>/dev/null | tail -20",
+        "ls -la /var/log/ 2>/dev/null | head -10",
+        NULL
+    };
+    
+    const char *descriptions[] = {
+        "System Journal (journalctl):",
+        "Kernel Messages (dmesg):",
+        "System Log (/var/log/syslog):",
+        "System Messages (/var/log/messages):",
+        "Auth Log (/var/log/auth.log):",
+        "Kernel Log (/var/log/kern.log):",
+        "Log Directory Contents:",
+        NULL
+    };
+    
+    for (int i = 0; commands[i] != NULL; i++) {
+        printf("\n=== %s ===\n", descriptions[i]);
+        printf("Command: %s\n", commands[i]);
+        printf("Output:\n");
+        printf("--------\n");
+        
+        int result = system(commands[i]);
+        if (result != 0) {
+            printf("Command failed or no output\n");
+        }
+        printf("\n");
+    }
+    
+    return 0;
+}
