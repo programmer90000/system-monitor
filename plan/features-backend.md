@@ -22,7 +22,7 @@
 | Package Manager Software                 | A list of all applications and packages installed via the system's package manager (e.g., APT, DNF, Pacman) | ✅        |
 | Non-Package Manager Software             | A list of software installed from other sources (e.g., Flatpaks, Snaps, AppImages, or manual installs)      | ✅        |
 | Internet Speed Test                      | An integrated tool to measure download and upload bandwidth                                                 | ❌        |
-| Firewall Status                          | A clear indicator showing whether the system's firewall is active or inactive                               | ❌        |
+| Firewall Status                          | A clear indicator showing whether the system's firewall is active or inactive                               | ✅        |
 | Network Connections per Process          | A table mapping all active network connections to the processes that own them                               | ❌        |
 | Failed Login Attempts                    | A security log showing the number and source of recent failed login attempts                                | ❌        |
 | Sudo History                             | A log of all commands recently executed with administrative (sudo) privileges                               | ❌        |
