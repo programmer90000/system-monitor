@@ -1116,8 +1116,6 @@ int display_running_processes() {
     
     printf("\n=== DETAILED FILE AND NETWORK INFO FOR HIGH-RESOURCE PROCESSES ===\n");
     for(int i=0;i<proc_count;i++){
-        if(processes[i].cpu_percent > 1.0 || processes[i].ram_percent > 1.0 || 
-           processes[i].file_count > 50 || processes[i].socket_count > 10) {
             
             printf("\n--- PID %s: %s (CPU: %.2f%%, RAM: %.2f%%, Files: %d, Sockets: %d) ---\n",
                    processes[i].pid, processes[i].name, 
@@ -1135,7 +1133,7 @@ int display_running_processes() {
                 char link_target[1024];
                 int file_count = 0;
                 
-                while((fd_entry = readdir(fd_dir)) != NULL && file_count < 10) {
+                while((fd_entry = readdir(fd_dir)) != NULL) {
                     if(fd_entry->d_name[0] == '.') continue;
                     
                     snprintf(fd_path, sizeof(fd_path), "/proc/%s/fd/%s", 
@@ -1197,7 +1195,6 @@ int display_running_processes() {
                 }
                 fclose(tcp_file);
             }
-        }
     }
     
     return proc_count;
