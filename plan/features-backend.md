@@ -15,7 +15,6 @@
 | Process Resource History                 | Measure the CPU and memory usage of each process over the last few minutes to identify spikes               | ✅        |
 | Process Dependencies Tree                | A map showing the parent-child relationships between running processes                                      | ✅        |
 | Process File Activity                    | Show all files and network connections currently open by a specific process                                 | ✅        |
-| File Lock Identification                 | Identify which process has a specific file or directory open, crucial for debugging "device busy" errors    | ❌        |
 | S.M.A.R.T. Status                        | Monitoring and health status for supported hard drives and SSDs to predict potential failures               | ✅        |
 | System Uptime History                    | Shows total system uptime and a log of wake cycles for diagnostics                                          | ✅        |
 | System Sleep History                     | Shows total system sleep time and a log of sleep cycles for diagnostics                                     | ✅        |
