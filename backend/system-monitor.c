@@ -907,6 +907,9 @@ int display_running_processes() {
         double ram_percent;
         double cpu_percent;
         int level;
+        int file_count;
+        int socket_count;
+        char network_connections[1024]; // Store brief network info
     } processes[4096];
 
     int proc_count = 0;
@@ -930,7 +933,7 @@ int display_running_processes() {
     // Read all numeric directories in /proc
     while ((entry = readdir(dir)) != NULL && proc_count < 4096) {
         if(entry->d_name[0] >= '0' && entry->d_name[0] <= '9') {
-            char path[256];
+            char path[512];
             FILE *fp;
 
             // Initialize process
@@ -942,6 +945,9 @@ int display_running_processes() {
             processes[proc_count].ram_percent = 0.0;
             processes[proc_count].cpu_percent = 0.0;
             processes[proc_count].level = -1;
+            processes[proc_count].file_count = 0;
+            processes[proc_count].socket_count = 0;
+            strcpy(processes[proc_count].network_connections, "");
 
             // Read /proc/[pid]/status
             snprintf(path, sizeof(path), "/proc/%s/status", entry->d_name);
@@ -1008,6 +1014,36 @@ int display_running_processes() {
                 fclose(fp);
             }
 
+            // Count open files and sockets
+            snprintf(path, sizeof(path), "/proc/%s/fd", processes[proc_count].pid);
+            DIR *fd_dir = opendir(path);
+            if(fd_dir) {
+                struct dirent *fd_entry;
+                char fd_path[512];
+                char link_target[1024];
+                
+                while((fd_entry = readdir(fd_dir)) != NULL) {
+                    if(fd_entry->d_name[0] == '.') continue;
+                    
+                    processes[proc_count].file_count++;
+                    
+                    // Check if it's a socket
+                    snprintf(fd_path, sizeof(fd_path), "/proc/%s/fd/%s", 
+                             processes[proc_count].pid, fd_entry->d_name);
+                    
+                    ssize_t len = readlink(fd_path, link_target, sizeof(link_target)-1);
+                    if(len != -1) {
+                        link_target[len] = '\0';
+                        if(strncmp(link_target, "socket:", 7) == 0) {
+                            processes[proc_count].socket_count++;
+                        }
+                    }
+                }
+                closedir(fd_dir);
+            }
+
+            // Get network connection details from /proc/net/tcp and /proc/net/udp
+            processes[proc_count].file_count = processes[proc_count].file_count;
             proc_count++;
         }
     }
@@ -1054,9 +1090,9 @@ int display_running_processes() {
     }
 
     // Display header
-    printf("\nPROCESS TREE HIERARCHY:\n");
-    printf("PID (PPID)  CPU%%    RAM%%     RAM(KB)   STATE     COMMAND\n");
-    printf("---------------------------------------------------------\n");
+    printf("\nPROCESS TREE HIERARCHY WITH FILE/SOCKET INFO:\n");
+    printf("PID (PPID)  CPU%%    RAM%%     RAM(KB)   FILES  SOCKS  STATE     COMMAND\n");
+    printf("-------------------------------------------------------------------------\n");
 
     // Display tree
     for(int i=0;i<proc_count;i++){
@@ -1064,20 +1100,108 @@ int display_running_processes() {
             if(j == processes[i].level - 1) printf("└── ");
             else printf("    ");
         }
-        printf("%-5s (%-5s) %6.2f%% %6.2f%% %9ld %-8s %s\n",
+        printf("%-5s (%-5s) %6.2f%% %6.2f%% %9ld %6d %6d %-8s %s\n",
             processes[i].pid,
             processes[i].ppid,
             processes[i].cpu_percent,
             processes[i].ram_percent,
             processes[i].ram_kb,
+            processes[i].file_count,
+            processes[i].socket_count,
             processes[i].state,
             processes[i].name);
     }
 
     printf("\nTotal processes: %d\n", proc_count);
+    
+    printf("\n=== DETAILED FILE AND NETWORK INFO FOR HIGH-RESOURCE PROCESSES ===\n");
+    for(int i=0;i<proc_count;i++){
+        if(processes[i].cpu_percent > 1.0 || processes[i].ram_percent > 1.0 || 
+           processes[i].file_count > 50 || processes[i].socket_count > 10) {
+            
+            printf("\n--- PID %s: %s (CPU: %.2f%%, RAM: %.2f%%, Files: %d, Sockets: %d) ---\n",
+                   processes[i].pid, processes[i].name, 
+                   processes[i].cpu_percent, processes[i].ram_percent,
+                   processes[i].file_count, processes[i].socket_count);
+            
+            // Show open files (first 10)
+            char path[512];
+            snprintf(path, sizeof(path), "/proc/%s/fd", processes[i].pid);
+            DIR *fd_dir = opendir(path);
+            if(fd_dir) {
+                printf("Open files (first 10):\n");
+                struct dirent *fd_entry;
+                char fd_path[512];
+                char link_target[1024];
+                int file_count = 0;
+                
+                while((fd_entry = readdir(fd_dir)) != NULL && file_count < 10) {
+                    if(fd_entry->d_name[0] == '.') continue;
+                    
+                    snprintf(fd_path, sizeof(fd_path), "/proc/%s/fd/%s", 
+                             processes[i].pid, fd_entry->d_name);
+                    
+                    ssize_t len = readlink(fd_path, link_target, sizeof(link_target)-1);
+                    if(len != -1) {
+                        link_target[len] = '\0';
+                        printf("  FD %s -> %s\n", fd_entry->d_name, link_target);
+                        file_count++;
+                    }
+                }
+                closedir(fd_dir);
+            }
+            
+            // Show network connections from /proc/net/tcp
+            printf("Network connections:\n");
+            FILE *tcp_file = fopen("/proc/net/tcp", "r");
+            if(tcp_file) {
+                char line[1024];
+                fgets(line, sizeof(line), tcp_file); // Skip header
+                while(fgets(line, sizeof(line), tcp_file)) {
+                    // Basic parsing - you can enhance this to show more details
+                    char local_addr[64], remote_addr[64], state[16];
+                    int uid, inode;
+                    if(sscanf(line, "%*d: %63s %63s %15s %*x:%*x %*x:%*x %*x %d %*d %d",
+                             local_addr, remote_addr, state, &uid, &inode) >= 5) {
+                        
+                        // Check if this inode matches any of the process's socket inodes
+                        char socket_path[64];
+                        snprintf(socket_path, sizeof(socket_path), "socket:[%d]", inode);
+                        
+                        // Check if this socket belongs to our process
+                        snprintf(path, sizeof(path), "/proc/%s/fd", processes[i].pid);
+                        DIR *check_dir = opendir(path);
+                        if(check_dir) {
+                            struct dirent *check_entry;
+                            char check_path[512];
+                            char check_link[1024];
+                            
+                            while((check_entry = readdir(check_dir)) != NULL) {
+                                if(check_entry->d_name[0] == '.') continue;
+                                
+                                snprintf(check_path, sizeof(check_path), "/proc/%s/fd/%s", 
+                                         processes[i].pid, check_entry->d_name);
+                                
+                                ssize_t len = readlink(check_path, check_link, sizeof(check_link)-1);
+                                if(len != -1) {
+                                    check_link[len] = '\0';
+                                    if(strcmp(check_link, socket_path) == 0) {
+                                        printf("  TCP %s -> %s (%s)\n", local_addr, remote_addr, state);
+                                        break;
+                                    }
+                                }
+                            }
+                            closedir(check_dir);
+                        }
+                    }
+                }
+                fclose(tcp_file);
+            }
+        }
+    }
+    
     return proc_count;
 }
-
 
 #define CMD_BUFFER_SIZE 1024
 
