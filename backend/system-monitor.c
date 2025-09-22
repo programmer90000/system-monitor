@@ -893,101 +893,153 @@ int get_proc_cpu_time(const char *pid_str, unsigned long long *utime, unsigned l
  */
 int display_running_processes() {
     DIR *dir = opendir("/proc");
-    if (!dir) return -1;
-
-    // First snapshot
-    struct dirent *entry;
-    unsigned long long total1 = get_total_cpu_time();
-
-    // Store per-PID cpu times
-    struct {
-        char pid[32];
-        unsigned long long utime;
-        unsigned long long stime;
-    } procs[32768]; // supports up to ~32k processes
-    int proc_count = 0;
-
-    while ((entry = readdir(dir)) != NULL) {
-        if (isdigit(entry->d_name[0])) {
-            unsigned long long utime, stime;
-            if (get_proc_cpu_time(entry->d_name, &utime, &stime) == 0) {
-                strcpy(procs[proc_count].pid, entry->d_name);
-                procs[proc_count].utime = utime;
-                procs[proc_count].stime = stime;
-                proc_count++;
-            }
-        }
+    if (!dir) {
+        printf("Error: Cannot open /proc directory\n");
+        return -1;
     }
 
-    // Sleep 1 second
-    sleep(1);
-
-    // Second snapshot
-    rewinddir(dir);
-    unsigned long long total2 = get_total_cpu_time();
-
-    printf("%-8s %-8s %-8s %-10s %-20s %s\n",
-           "PID", "PPID", "CPU%", "RAM(KB)", "STAT", "COMMAND");
-    printf("-----------------------------------------------------------------------------\n");
-
-    int count = 0;
-    while ((entry = readdir(dir)) != NULL) {
-        if (isdigit(entry->d_name[0])) {
-            count++;
-
-            char path[256], buffer[1024];
+    // Simple structure to store process info
+    struct ProcInfo {
+        char pid[32];
+        char ppid[32];
+        char name[256];
+        char state[32];
+        long ram_kb;
+        double cpu_percent;
+        int level;
+    } processes[4096];  // Reduced size for safety
+    
+    int proc_count = 0;
+    struct dirent *entry;
+    
+    // Initialize all process structures
+    memset(processes, 0, sizeof(processes));
+    
+    while ((entry = readdir(dir)) != NULL && proc_count < 4096) {
+        if (entry->d_name[0] >= '0' && entry->d_name[0] <= '9') {
+            char path[256];
             FILE *fp;
-            pid_t pid = 0, ppid = 0;
-            char name[256] = "Unknown";
-            char state[10] = "Unknown";
-            long ram_kb = 0;
-            double cpu_percent = 0.0;
-
-            // Parse /proc/<pid>/status
+            
+            // Initialize the current process info
+            strncpy(processes[proc_count].pid, entry->d_name, sizeof(processes[proc_count].pid)-1);
+            strcpy(processes[proc_count].ppid, "0");
+            strcpy(processes[proc_count].name, "Unknown");
+            strcpy(processes[proc_count].state, "Unknown");
+            processes[proc_count].ram_kb = 0;
+            processes[proc_count].cpu_percent = 0.0;
+            processes[proc_count].level = -1;
+            
+            // Read process status
             snprintf(path, sizeof(path), "/proc/%s/status", entry->d_name);
             fp = fopen(path, "r");
             if (fp) {
+                char buffer[1024];
                 while (fgets(buffer, sizeof(buffer), fp)) {
                     if (strncmp(buffer, "Name:", 5) == 0) {
-                        sscanf(buffer + 5, "%s", name);
+                        char *name_start = buffer + 5;
+                        while (*name_start == ' ' || *name_start == '\t') name_start++;
+                        strncpy(processes[proc_count].name, name_start, sizeof(processes[proc_count].name)-1);
+                        processes[proc_count].name[strcspn(processes[proc_count].name, "\n")] = 0;
                     } else if (strncmp(buffer, "State:", 6) == 0) {
-                        sscanf(buffer + 6, "%s", state);
+                        char *state_start = buffer + 6;
+                        while (*state_start == ' ' || *state_start == '\t') state_start++;
+                        strncpy(processes[proc_count].state, state_start, sizeof(processes[proc_count].state)-1);
+                        processes[proc_count].state[strcspn(processes[proc_count].state, "\n")] = 0;
                     } else if (strncmp(buffer, "Pid:", 4) == 0) {
-                        sscanf(buffer + 4, "%d", &pid);
+                        char *pid_start = buffer + 4;
+                        while (*pid_start == ' ' || *pid_start == '\t') pid_start++;
+                        strncpy(processes[proc_count].pid, pid_start, sizeof(processes[proc_count].pid)-1);
+                        processes[proc_count].pid[strcspn(processes[proc_count].pid, "\n")] = 0;
                     } else if (strncmp(buffer, "PPid:", 5) == 0) {
-                        sscanf(buffer + 5, "%d", &ppid);
+                        char *ppid_start = buffer + 5;
+                        while (*ppid_start == ' ' || *ppid_start == '\t') ppid_start++;
+                        strncpy(processes[proc_count].ppid, ppid_start, sizeof(processes[proc_count].ppid)-1);
+                        processes[proc_count].ppid[strcspn(processes[proc_count].ppid, "\n")] = 0;
                     } else if (strncmp(buffer, "VmRSS:", 6) == 0) {
-                        sscanf(buffer + 6, "%ld", &ram_kb);
+                        char *rss_start = buffer + 6;
+                        while (*rss_start == ' ' || *rss_start == '\t') rss_start++;
+                        sscanf(rss_start, "%ld", &processes[proc_count].ram_kb);
                     }
                 }
                 fclose(fp);
             }
-
-            // Second snapshot CPU time
-            unsigned long long utime2, stime2;
-            if (get_proc_cpu_time(entry->d_name, &utime2, &stime2) == 0) {
-                // Find old snapshot
-                for (int i = 0; i < proc_count; i++) {
-                    if (strcmp(procs[i].pid, entry->d_name) == 0) {
-                        unsigned long long utime1 = procs[i].utime;
-                        unsigned long long stime1 = procs[i].stime;
-                        unsigned long long delta_proc = (utime2 + stime2) - (utime1 + stime1);
-                        unsigned long long delta_total = total2 - total1;
-                        if (delta_total > 0)
-                            cpu_percent = (100.0 * delta_proc) / delta_total;
-                        break;
+            
+            proc_count++;
+        }
+    }
+    
+    closedir(dir);
+    
+    // Calculate hierarchy levels iteratively (avoid recursion)
+    int changed;
+    do {
+        changed = 0;
+        for (int i = 0; i < proc_count; i++) {
+            if (processes[i].level == -1) {
+                // Root processes
+                if (strcmp(processes[i].ppid, "0") == 0) {
+                    processes[i].level = 0;
+                    changed = 1;
+                } else {
+                    // Find parent and set level
+                    for (int j = 0; j < proc_count; j++) {
+                        if (strcmp(processes[j].pid, processes[i].ppid) == 0 && processes[j].level != -1) {
+                            processes[i].level = processes[j].level + 1;
+                            changed = 1;
+                            break;
+                        }
                     }
                 }
             }
-
-            printf("%-8d %-8d %-8.2f %-10ld %-20s %s\n",
-                   pid, ppid, cpu_percent, ram_kb, state, name);
+        }
+    } while (changed);
+    
+    // Set level for any remaining orphaned processes
+    for (int i = 0; i < proc_count; i++) {
+        if (processes[i].level == -1) {
+            processes[i].level = 0;  // Treat as root
         }
     }
-
-    closedir(dir);
-    printf("\nNumber of running processes: %d\n", count);
-    return count;
+    
+    // Simple bubble sort by level and then by PID (not efficient but safe)
+    for (int i = 0; i < proc_count - 1; i++) {
+        for (int j = 0; j < proc_count - i - 1; j++) {
+            if (processes[j].level > processes[j+1].level || 
+                (processes[j].level == processes[j+1].level && atoi(processes[j].pid) > atoi(processes[j+1].pid))) {
+                struct ProcInfo temp = processes[j];
+                processes[j] = processes[j+1];
+                processes[j+1] = temp;
+            }
+        }
+    }
+    
+    // Display header
+    printf("\nPROCESS TREE HIERARCHY:\n");
+    printf("PID (PPID)        RAM(KB)   STATE     COMMAND\n");
+    printf("------------------------------------------------\n");
+    
+    // Display processes in hierarchical order
+    for (int i = 0; i < proc_count; i++) {
+        // Print indentation based on level
+        for (int j = 0; j < processes[i].level; j++) {
+            if (j == processes[i].level - 1) {
+                printf("└── ");
+            } else {
+                printf("    ");
+            }
+        }
+        
+        // Print process info
+        printf("%-5s (%-5s) %9ld %-8s %s\n",
+               processes[i].pid, 
+               processes[i].ppid,
+               processes[i].ram_kb,
+               processes[i].state, 
+               processes[i].name);
+    }
+    
+    printf("\nTotal processes: %d\n", proc_count);
+    return proc_count;
 }
 
 
