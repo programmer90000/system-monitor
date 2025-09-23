@@ -23,7 +23,6 @@
 | Non-Package Manager Software             | A list of software installed from other sources (e.g., Flatpaks, Snaps, AppImages, or manual installs)      | ✅        |
 | Internet Speed Test                      | An integrated tool to measure download and upload bandwidth                                                 | ❌        |
 | Firewall Status                          | A clear indicator showing whether the system's firewall is active or inactive                               | ✅        |
-| Failed Login Attempts                    | A security log showing the number and source of recent failed login attempts                                | ❌        |
 | User Session Overview                    | A list of all users currently logged into the system                                                        | ✅        |
 | System Log Viewer                        | A Real-time log tailing, viewing, and filtering system logs                                                 | ✅        |
 | System Information Summary               | A concise overview of key hardware details (CPU model, RAM size, GPU model, etc.)                           | ✅        |
