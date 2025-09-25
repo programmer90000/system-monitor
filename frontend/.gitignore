@@ -1,0 +1,49 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# Dependencies
+node_modules/
+
+# Package Manager Configuration
+package-lock.json
+
+# Rust dependencies and build artifacts
+src-tauri/Cargo.lock
+src-tauri/target/
+
+# Tauri specific generated files
+src-tauri/gen/
+src-tauri/schemas/
+
+# Build output
+dist/
+build/
+*.tgz
+*.tar.gz
+
+# Package Manager Configuration
+.npmrc
+.yarnrc
+package-lock.json
+
+# IDE settings
+.idea/
+.vscode/
+
+# Log files
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+.temp/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
