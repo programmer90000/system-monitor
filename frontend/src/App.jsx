@@ -80,10 +80,6 @@ function App() {
                         <button className = "mobile-sidebar-toggle" onClick = {toggleSidebar}/>
                         <h2>{getActiveButtonLabel()}</h2>
                     </div>
-                    <div className = "content-actions">
-                        <button className = "action-button">Refresh</button>
-                        <button className = "action-button">Help</button>
-                    </div>
                 </header>
                 <main className = "content-main">{renderContent()}</main>
             </div>

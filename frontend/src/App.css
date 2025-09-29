@@ -283,26 +283,6 @@ body {
   font-weight: 600;
 }
 
-.content-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.action-button {
-  padding: 6px 12px;
-  background: #3498db;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  transition: background 0.3s ease;
-}
-
-.action-button:hover {
-  background: #2980b9;
-}
-
 .content-main {
   flex: 1;
   padding: 25px;
@@ -537,16 +517,6 @@ body {
   .content-header h2 {
     font-size: 1.3rem;
   }
-
-  .content-actions {
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .action-button {
-    padding: 5px 10px;
-    font-size: 11px;
-  }
 }
 
 @media (max-width: 480px) {
@@ -559,12 +529,6 @@ body {
 
   .content-header-left {
     width: 100%;
-  }
-
-  .content-actions {
-    width: 100%;
-    flex-direction: row;
-    justify-content: flex-end;
   }
 
   .content-main {
