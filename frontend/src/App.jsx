@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import reactLogo from "./assets/react.svg";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
@@ -6,11 +6,21 @@ import "./App.css";
 function App() {
     const [greetMsg, setGreetMsg] = useState("");
     const [name, setName] = useState("");
+    const [cProgramOutput, setCProgramOutput] = useState("");
 
     async function greet() {
         // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
         setGreetMsg(await invoke("greet", { name }));
     }
+
+    async function runCProgram() {
+        const output = await invoke("run_c_program");
+        setCProgramOutput(output);
+    }
+
+    useEffect(() => {
+        runCProgram();
+    }, []);
 
     return (
         <main className = "container">
@@ -27,6 +37,15 @@ function App() {
                     <img src = {reactLogo} className = "logo react" alt = "React logo"/>
                 </a>
             </div>
+
+            <div className = "row">
+                <div style = {{ "textAlign": "left", "margin": "20px", "padding": "15px", "backgroundColor": "#000000", "borderRadius": "8px" }}>
+                    <h3>C Program Output</h3>
+                    <pre style = {{ "whiteSpace": "pre-wrap" }}>{cProgramOutput || "Loading..."}</pre>
+                    <button onClick = {runCProgram}>Run C Program Again</button>
+                </div>
+            </div>
+
             <p>Click on the Tauri, Vite, and React logos to learn more.</p>
 
             <form className = "row" onSubmit = {(e) => {

@@ -2353,3 +2353,8 @@ int view_system_logs() {
     
     return 0;
 }
+
+int main() {
+    printf("This is the system monitor C file");
+    return 0;
+}
