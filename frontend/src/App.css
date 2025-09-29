@@ -61,6 +61,7 @@ body {
   color: #bdc3c7;
   opacity: 0.8;
   transition: opacity 0.3s ease;
+  margin-bottom: 9px;
 }
 
 .sidebar.collapsed .sidebar-subtitle {
