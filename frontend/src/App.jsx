@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import Sidebar from "./components/sidebar/sidebar";
+import { Dashboard, Overview, Reports, FileManager, Editor, Calculator, Converter, Profile, Settings, Messages, Notifications } from "./screens";
 import "./App.css";
 
 function App() {
@@ -10,47 +12,11 @@ function App() {
     });
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-    const sidebarGroups = [
-        {
-            "id": "main",
-            "label": "Main Navigation",
-            "icon": "🏠",
-            "buttons": [
-                { "id": "dashboard", "label": "Dashboard", "icon": "📊" },
-                { "id": "overview", "label": "Overview", "icon": "📕" },
-                { "id": "reports", "label": "Reports", "icon": "📋" },
-            ],
-        },
-        {
-            "id": "tools",
-            "label": "Tools & Utilities",
-            "icon": "🛠️",
-            "buttons": [
-                { "id": "files", "label": "File Manager", "icon": "📁" },
-                { "id": "editor", "label": "Editor", "icon": "✏️" },
-                { "id": "calculator", "label": "Calculator", "icon": "🧮" },
-                { "id": "converter", "label": "Converter", "icon": "🔄" },
-            ],
-        },
-        {
-            "id": "account",
-            "label": "Account",
-            "icon": "👤",
-            "buttons": [
-                { "id": "profile", "label": "Profile", "icon": "👤" },
-                { "id": "settings", "label": "Settings", "icon": "⚙️" },
-                { "id": "messages", "label": "Messages", "icon": "💬" },
-                { "id": "notifications", "label": "Notifications", "icon": "🔔" },
-            ],
-        },
-    ];
-
-    const handleButtonClick = (buttonId) => {
-        setActiveSection(buttonId);
-        console.log(`Navigating to: ${buttonId}`);
+    const handleSectionChange = (sectionId) => {
+        setActiveSection(sectionId);
     };
 
-    const toggleGroup = (groupId) => {
+    const handleToggleGroup = (groupId) => {
         setExpandedGroups((prev) => { return {
             ...prev,
             [groupId]: !prev[groupId],
@@ -64,104 +30,67 @@ function App() {
     const renderContent = () => {
         switch (activeSection) {
         case "dashboard":
-            return <div className = "content-section"><h2>Dashboard</h2><p>Welcome to your dashboard overview!</p></div>;
+            return <Dashboard/>;
         case "overview":
-            return <div className = "content-section"><h2>Overview</h2><p>Get a quick overview of your data.</p></div>;
+            return <Overview/>;
         case "reports":
-            return <div className = "content-section"><h2>Reports</h2><p>View and generate detailed reports.</p></div>;
+            return <Reports/>;
         case "files":
-            return <div className = "content-section"><h2>File Manager</h2><p>Manage your files and documents.</p></div>;
+            return <FileManager/>;
         case "editor":
-            return <div className = "content-section"><h2>Editor</h2><p>Create and edit your content.</p></div>;
+            return <Editor/>;
         case "calculator":
-            return <div className = "content-section"><h2>Calculator</h2><p>Perform calculations and analysis.</p></div>;
+            return <Calculator/>;
         case "converter":
-            return <div className = "content-section"><h2>Converter</h2><p>Convert between different formats.</p></div>;
+            return <Converter/>;
         case "profile":
-            return <div className = "content-section"><h2>Profile</h2><p>Manage your personal profile.</p></div>;
+            return <Profile/>;
         case "settings":
-            return <div className = "content-section"><h2>Settings</h2><p>Configure application preferences.</p></div>;
+            return <Settings/>;
         case "messages":
-            return <div className = "content-section"><h2>Messages</h2><p>Check your inbox and sent messages.</p></div>;
+            return <Messages/>;
         case "notifications":
-            return <div className = "content-section"><h2>Notifications</h2><p>View your notification history.</p></div>;
+            return <Notifications/>;
         default:
-            return <div className = "content-section"><h2>Welcome</h2><p>Select a section to get started.</p></div>;
+            return <Dashboard/>;
         }
     };
 
     const getActiveButtonLabel = () => {
-        for (const group of sidebarGroups) {
-            const button = group.buttons.find((btn) => { return btn.id === activeSection; });
-            if (button) { return button.label; }
-        }
-        return "Dashboard";
+        const allButtons = [
+            { "id": "dashboard", "label": "Dashboard" },
+            { "id": "overview", "label": "Overview" },
+            { "id": "reports", "label": "Reports" },
+            { "id": "files", "label": "File Manager" },
+            { "id": "editor", "label": "Editor" },
+            { "id": "calculator", "label": "Calculator" },
+            { "id": "converter", "label": "Converter" },
+            { "id": "profile", "label": "Profile" },
+            { "id": "settings", "label": "Settings" },
+            { "id": "messages", "label": "Messages" },
+            { "id": "notifications", "label": "Notifications" },
+        ];
+    
+        const button = allButtons.find((btn) => { return btn.id === activeSection; });
+        return button ? button.label : "Dashboard";
     };
 
     return (
         <div className = "app">
             {/* Sidebar */}
-            <div className = {`sidebar ${isSidebarCollapsed ? "collapsed" : ""}`}>
-                <div className = "sidebar-header">
-                    {!isSidebarCollapsed && (
-                        <>
-                            <h1>My App</h1>
-                            <p className = "sidebar-subtitle">Navigation Menu</p>
-                        </>
-                    )}
-                    <button className = "sidebar-toggle" onClick = {toggleSidebar}>
-                        {isSidebarCollapsed ? "➡️" : "⬅️"}
-                    </button>
-                </div>
-        
-                <nav className = "sidebar-nav">
-                    {sidebarGroups.map((group) => { return (
-                        <div key = {group.id} className = "sidebar-group">
-                            {/* Group Header */}
-                            <button className = "sidebar-group-header"
-                                onClick = {() => { return toggleGroup(group.id); }}
-                                title = {isSidebarCollapsed ? group.label : ""}
-                            >
-                                <span className = "group-icon">{group.icon}</span>
-                                {!isSidebarCollapsed && (
-                                    <>
-                                        <span className = "group-label">{group.label}</span>
-                                        <span className = {`group-chevron ${expandedGroups[group.id] ? "expanded" : ""}`}>
-                                            ▼
-                                        </span>
-                                    </>
-                                )}
-                            </button>
-
-                            {/* Group Buttons */}
-                            {(!isSidebarCollapsed || expandedGroups[group.id]) && (
-                                <div className = {`sidebar-group-buttons ${expandedGroups[group.id] ? "expanded" : ""}`}>
-                                    {group.buttons.map((button) => { return (
-                                        <button key = {button.id}
-                                            className = {`sidebar-button ${activeSection === button.id ? "active" : ""}`}
-                                            onClick = {() => { return handleButtonClick(button.id); }}
-                                            title = {isSidebarCollapsed ? button.label : ""}
-                                        >
-                                            <span className = "button-icon">{button.icon}</span>
-                                            {!isSidebarCollapsed && (
-                                                <span className = "button-label">{button.label}</span>
-                                            )}
-                                        </button>
-                                    ); })}
-                                </div>
-                            )}
-                        </div>
-                    ); })}
-                </nav>
-            </div>
+            <Sidebar activeSection = {activeSection}
+                onSectionChange = {handleSectionChange}
+                expandedGroups = {expandedGroups}
+                onToggleGroup = {handleToggleGroup}
+                isSidebarCollapsed = {isSidebarCollapsed}
+                onToggleSidebar = {toggleSidebar}
+            />
 
             {/* Main Content */}
             <div className = "main-content">
                 <header className = "content-header">
                     <div className = "content-header-left">
-                        <button className = "mobile-sidebar-toggle" onClick = {toggleSidebar}>
-                            ☰
-                        </button>
+                        <button className = "mobile-sidebar-toggle" onClick = {toggleSidebar}/>
                         <h2>{getActiveButtonLabel()}</h2>
                     </div>
                     <div className = "content-actions">
