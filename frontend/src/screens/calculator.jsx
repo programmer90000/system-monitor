@@ -17,11 +17,7 @@ const Calculator = () => {
             <h2>Calculator</h2>
             <p>Perform calculations and analysis.</p>
             <div className = "calculator">
-                <input type = "text" 
-                    value = {input} 
-                    onChange = {(e) => { return setInput(e.target.value); }}
-                    placeholder = "Enter calculation"
-                />
+                <input type = "text" value = {input} onChange = {(e) => { return setInput(e.target.value); }} placeholder = "Enter calculation"/>
                 <button onClick = {handleCalculate}>Calculate</button>
                 <div className = "result">Result: {result}</div>
             </div>

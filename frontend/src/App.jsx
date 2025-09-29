@@ -5,11 +5,7 @@ import "./App.css";
 
 function App() {
     const [activeSection, setActiveSection] = useState("dashboard");
-    const [expandedGroups, setExpandedGroups] = useState({
-        "main": true,
-        "tools": true,
-        "account": true,
-    });
+    const [expandedGroups, setExpandedGroups] = useState({ "main": true, "tools": true, "account": true });
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
     const handleSectionChange = (sectionId) => {
@@ -70,23 +66,14 @@ function App() {
             { "id": "messages", "label": "Messages" },
             { "id": "notifications", "label": "Notifications" },
         ];
-    
+
         const button = allButtons.find((btn) => { return btn.id === activeSection; });
         return button ? button.label : "Dashboard";
     };
 
     return (
         <div className = "app">
-            {/* Sidebar */}
-            <Sidebar activeSection = {activeSection}
-                onSectionChange = {handleSectionChange}
-                expandedGroups = {expandedGroups}
-                onToggleGroup = {handleToggleGroup}
-                isSidebarCollapsed = {isSidebarCollapsed}
-                onToggleSidebar = {toggleSidebar}
-            />
-
-            {/* Main Content */}
+            <Sidebar activeSection = {activeSection} onSectionChange = {handleSectionChange} expandedGroups = {expandedGroups} onToggleGroup = {handleToggleGroup} isSidebarCollapsed = {isSidebarCollapsed} onToggleSidebar = {toggleSidebar}/>
             <div className = "main-content">
                 <header className = "content-header">
                     <div className = "content-header-left">
@@ -98,10 +85,7 @@ function App() {
                         <button className = "action-button">Help</button>
                     </div>
                 </header>
-        
-                <main className = "content-main">
-                    {renderContent()}
-                </main>
+                <main className = "content-main">{renderContent()}</main>
             </div>
         </div>
     );
