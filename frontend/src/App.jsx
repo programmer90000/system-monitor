@@ -1,12 +1,24 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import Sidebar from "./components/sidebar/sidebar";
 import { Dashboard, Overview, Reports, FileManager, Editor, Calculator, Converter, Profile, Settings, Messages, Notifications } from "./screens";
 import "./App.css";
 
 function App() {
+    const [cProgramOutput, setCProgramOutput] = useState("");
     const [activeSection, setActiveSection] = useState("dashboard");
     const [expandedGroups, setExpandedGroups] = useState({ "main": true, "tools": true, "account": true });
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+    async function runCProgram() {
+        const output = await invoke("run_c_program");
+        setCProgramOutput(output);
+        console.log(cProgramOutput);
+    }
+
+    useEffect(() => {
+        runCProgram();
+    }, []);
 
     const handleSectionChange = (sectionId) => {
         setActiveSection(sectionId);
