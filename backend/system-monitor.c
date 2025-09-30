@@ -2357,6 +2357,41 @@ int view_system_logs() {
 }
 
 int main() {
-    printf("This is the system monitor C file");
+    printf("=== System Monitor Starting ===\n\n");
+    
+    init_system_history();
+    print_os_summary();
+    display_hardware_info();
+    int cores = get_core_count();
+    printf("CPU Cores: %d\n", cores);
+    LoadAverage load = get_load_average();
+    printf("Load Average: %.2f, %.2f, %.2f\n", 
+           load.load_1min, load.load_5min, load.load_15min);
+    calculate_cpu_usage();
+    float cpu_temp = get_cpu_temperature();
+    float gpu_temp = get_gpu_temperature();
+    float vrm_temp = get_vrm_temperature();
+    float chipset_temp = get_chipset_temperature();
+    float motherboard_temp = get_motherboard_temperature();
+    float psu_temp = get_psu_temperature();
+    float case_temp = get_case_temperature();
+    printf("Temperatures - CPU: %.2f°C, GPU: %.2f°C, VRM: %.2f°C\n", 
+           cpu_temp, gpu_temp, vrm_temp);
+    find_storage_devices_with_temperature_reporting();
+    for (int i = 0; i < storage_device_count; i++) {
+        float storage_temp = get_storage_temperature(storage_devices[i].path);
+        printf("Storage %s: %.2f°C\n", storage_devices[i].name, storage_temp);
+    }
+    int process_count = display_running_processes();
+    printf("Total processes: %d\n", process_count);
+    read_cpu_stats();
+    detect_all_storage_devices();
+    print_device_list();
+    show_system_uptime_and_cpu_sleep_time();
+    display_hardware_info();
+    show_logged_in_users();
+    check_firewall();
+
+    printf("\n=== System Monitor Completed ===\n");
     return 0;
 }
