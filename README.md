@@ -46,3 +46,15 @@ To view the console output, run the app in the terminal instead:
 ```
 system-monitor
 ```
+
+# How to uninstall the app
+
+Find out if it is already installed:
+```
+dpkg -l | grep -i system-monitor
+```
+
+If it is, run:
+```
+sudo apt remove system-monitor
+```
