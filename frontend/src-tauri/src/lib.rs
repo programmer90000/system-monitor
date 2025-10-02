@@ -5,11 +5,6 @@ use std::path::PathBuf;
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
 #[command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
-#[command]
 fn run_c_program() -> String {
     // Use absolute path from the project root
     let mut c_program_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -45,7 +40,7 @@ fn run_c_program() -> String {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, run_c_program])
+        .invoke_handler(tauri::generate_handler![run_c_program])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
