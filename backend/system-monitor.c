@@ -1899,38 +1899,6 @@ long get_total_jiffies() {
     return total_jiffies;
 }
 
-void read_process_stat(pid_t pid, unsigned long *utime, unsigned long *stime, long *rss) {
-    char path[256];
-    snprintf(path, sizeof(path), "/proc/%d/stat", pid);
-    FILE *f = fopen(path, "r");
-    if (!f) { *utime = *stime = 0; *rss = 0; return; }
-
-    int p;
-    char comm[256], state;
-    unsigned long tmp;
-    fscanf(f, "%d %s %c", &p, comm, &state);
-    for (int i = 0; i < 11; i++) fscanf(f, "%lu", &tmp);
-    fscanf(f, "%lu %lu", utime, stime);
-    for (int i = 0; i < 7; i++) fscanf(f, "%lu", &tmp);
-    fscanf(f, "%ld", rss);
-    fclose(f);
-}
-
-void read_process_io(pid_t pid, unsigned long *read_bytes, unsigned long *write_bytes) {
-    char path[256];
-    snprintf(path, sizeof(path), "/proc/%d/io", pid);
-    FILE *f = fopen(path, "r");
-    *read_bytes = *write_bytes = 0;
-    if (!f) return;
-    char key[64];
-    unsigned long val;
-    while (fscanf(f, "%63s %lu", key, &val) == 2) {
-        if (strcmp(key, "read_bytes:") == 0) *read_bytes = val;
-        if (strcmp(key, "write_bytes:") == 0) *write_bytes = val;
-    }
-    fclose(f);
-}
-
 void show_system_uptime_and_cpu_sleep_time() {
     FILE *fp = fopen("/proc/uptime", "r");
     if (!fp) {
