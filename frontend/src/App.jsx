@@ -13,7 +13,7 @@ function App() {
     const hasRunRef = useRef(false);
 
     async function runCProgram() {
-        const output = await invoke("run_c_program");
+        const output = await invoke("run_c_program", { "function": "calculate_cpu_usage" });
         setCProgramOutput(output);
         console.log(cProgramOutput);
     }
