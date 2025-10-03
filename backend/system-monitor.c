@@ -1606,6 +1606,7 @@ void print_security_info() {
         }
         fclose(fp);
     }
+    printf("\n");
 }
 
 void print_system_limits() {
