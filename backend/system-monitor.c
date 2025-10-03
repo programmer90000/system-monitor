@@ -1610,7 +1610,7 @@ void print_security_info() {
 }
 
 void print_system_limits() {
-    printf("\n=== System Limits ===\n");
+    printf("=== System Limits ===\n");
     
     FILE *fp = fopen("/proc/sys/kernel/pid_max", "r");
     if (fp) {
