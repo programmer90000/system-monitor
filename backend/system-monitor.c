@@ -1,5 +1,3 @@
-// To run this file and the run-system-monitor.c file, comment out the main function at the bottom of this file
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
