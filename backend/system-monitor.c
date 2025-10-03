@@ -145,20 +145,11 @@ StorageDevice *storage_devices = NULL;
 int storage_device_count = 0;
 CPUData cpu_data;
 SystemHistory system_history;
-
-/**
- * Initializes a history buffer with zeros and resets index/count
- */
 void init_history_buffer(HistoryBuffer *buffer) {
     memset(buffer->values, 0, sizeof(buffer->values));
     buffer->index = 0;
     buffer->count = 0;
 }
-
-/**
- * Adds a new value to the circular history buffer
- * Maintains the most recent HISTORY_SIZE values
- */
 void add_to_history(HistoryBuffer *buffer, float value) {
     buffer->values[buffer->index] = value;
     buffer->index = (buffer->index + 1) % HISTORY_SIZE;
@@ -167,10 +158,6 @@ void add_to_history(HistoryBuffer *buffer, float value) {
     }
 }
 
-/**
- * Calculates and returns the average of all values in the history buffer
- * Returns 0.0 if buffer is empty
- */
 float get_history_average(HistoryBuffer *buffer) {
     if (buffer->count == 0) return 0.0;
     
