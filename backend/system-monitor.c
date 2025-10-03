@@ -1794,10 +1794,9 @@ void scan_directory(const char *path) {
         if (stat(fullpath, &info) != 0) continue;
 
         if (S_ISDIR(info.st_mode)) {
-            // Recurse into subdirectories
+            printf("[DIR] %s\n", fullpath);
             scan_directory(fullpath);
-        } else if (info.st_mode & S_IXUSR) {
-            // Executable found
+        } else {
             printf("%s\n", fullpath);
         }
     }
