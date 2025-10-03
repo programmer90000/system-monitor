@@ -830,41 +830,53 @@ void find_storage_devices_with_temperature_reporting() {
 // Read total CPU jiffies from /proc/stat
 unsigned long long get_total_cpu_time() {
     FILE *fp = fopen("/proc/stat", "r");
-    if (!fp) return 0;
+    if (!fp) {
+        printf("Error: Cannot open /proc/stat\n");
+        return 0;
+    }
 
     char buffer[1024];
     unsigned long long user, nice, system, idle, iowait, irq, softirq, steal;
-    fgets(buffer, sizeof(buffer), fp);
-    sscanf(buffer, "cpu %llu %llu %llu %llu %llu %llu %llu %llu",
+    
+    // Read the first line which contains aggregate CPU statistics
+    if (fgets(buffer, sizeof(buffer), fp)) {
+        int matched = sscanf(buffer, "cpu %llu %llu %llu %llu %llu %llu %llu %llu",
            &user, &nice, &system, &idle, &iowait, &irq, &softirq, &steal);
+        
+        if (matched >= 4) {
+            // Calculate total CPU time
+            unsigned long long total_time = user + nice + system + idle + iowait + irq + softirq + steal;
+            
+            // Display the detailed breakdown
+            printf("\n=== CPU Time Statistics ===\n");
+            printf("Component Breakdown (in jiffies):\n");
+            printf("----------------------------\n");
+            printf("User mode:      %llu\n", user);
+            printf("Nice mode:      %llu\n", nice);
+            printf("System mode:    %llu\n", system);
+            printf("Idle time:      %llu\n", idle);
+            
+            if (matched >= 5) printf("I/O wait:       %llu\n", iowait);
+            if (matched >= 6) printf("IRQ time:       %llu\n", irq);
+            if (matched >= 7) printf("Soft IRQ:       %llu\n", softirq);
+            if (matched >= 8) printf("Steal time:     %llu\n", steal);
+            
+            printf("----------------------------\n");
+            printf("Total CPU time: %llu jiffies\n", total_time);
+            printf("============================\n\n");
+
     fclose(fp);
-
-    return user + nice + system + idle + iowait + irq + softirq + steal;
-}
-
-// Read process utime + stime from /proc/<pid>/stat
-int get_proc_cpu_time(const char *pid_str, unsigned long long *utime, unsigned long long *stime) {
-    char path[256];
-    snprintf(path, sizeof(path), "/proc/%s/stat", pid_str);
-
-    FILE *fp = fopen(path, "r");
-    if (!fp) return -1;
-
-    int dummy;
-    char comm[256], state;
-    unsigned long long _utime, _stime;
-
-    fscanf(fp, "%d %s %c", &dummy, comm, &state);
-
-    // skip fields until 14,15
-    for (int i = 4; i <= 13; i++) fscanf(fp, "%*s");
-    fscanf(fp, "%llu %llu", &_utime, &_stime);
-
-    fclose(fp);
-
-    *utime = _utime;
-    *stime = _stime;
+            return total_time;
+        } else {
+            printf("Error: Failed to parse /proc/stat. Only %d fields matched.\n", matched);
+            fclose(fp);
     return 0;
+}
+    } else {
+        printf("Error: Cannot read from /proc/stat\n");
+        fclose(fp);
+        return 0;
+    }
 }
 
 /**
