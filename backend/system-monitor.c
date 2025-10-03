@@ -332,30 +332,50 @@ void calculate_cpu_usage() {
     static unsigned long prev_softirq = 0, prev_steal = 0;
 
     for (int i = 0; i < 2; i++) {
-    if (!first_run) {
-        sleep(1);
-    }
+        if (!first_run) {
+            sleep(1);
+        }
 
-    FILE *file = fopen("/proc/stat", "r");
-    if (!file) {
-        printf("Error: Cannot open /proc/stat\n");
-        return;
-    }
-
-    char line[256];
-    unsigned long user, nice, system, idle, iowait, irq, softirq, steal;
-    
-    if (fgets(line, sizeof(line), file)) {
-        if (sscanf(line, "cpu %lu %lu %lu %lu %lu %lu %lu %lu",
-                  &user, &nice, &system, &idle, &iowait, &irq, &softirq, &steal) < 4) {
-            fclose(file);
-            printf("Error: Cannot parse /proc/stat\n");
+        FILE *file = fopen("/proc/stat", "r");
+        if (!file) {
+            printf("Error: Cannot open /proc/stat\n");
             return;
         }
-    }
-    fclose(file);
 
-    if (first_run) {
+        char line[256];
+        unsigned long user, nice, system, idle, iowait, irq, softirq, steal;
+        
+        if (fgets(line, sizeof(line), file)) {
+            if (sscanf(line, "cpu %lu %lu %lu %lu %lu %lu %lu %lu",
+                      &user, &nice, &system, &idle, &iowait, &irq, &softirq, &steal) < 4) {
+                fclose(file);
+                printf("Error: Cannot parse /proc/stat\n");
+                return;
+            }
+        }
+        fclose(file);
+
+        if (first_run) {
+            prev_user = user;
+            prev_nice = nice;
+            prev_system = system;
+            prev_idle = idle;
+            prev_iowait = iowait;
+            prev_irq = irq;
+            prev_softirq = softirq;
+            prev_steal = steal;
+            first_run = 0;
+            printf("CPU Usage: 0.00%% (first measurement)\n");
+            continue;
+        }
+
+        unsigned long total_diff = (user - prev_user) + (nice - prev_nice) + 
+                                  (system - prev_system) + (idle - prev_idle) +
+                                  (iowait - prev_iowait) + (irq - prev_irq) +
+                                  (softirq - prev_softirq) + (steal - prev_steal);
+
+        unsigned long idle_diff = (idle - prev_idle) + (iowait - prev_iowait);
+
         prev_user = user;
         prev_nice = nice;
         prev_system = system;
@@ -364,34 +384,14 @@ void calculate_cpu_usage() {
         prev_irq = irq;
         prev_softirq = softirq;
         prev_steal = steal;
-        first_run = 0;
-        printf("CPU Usage: 0.00%% (first measurement)\n");
-            continue;
-    }
 
-    unsigned long total_diff = (user - prev_user) + (nice - prev_nice) + 
-                              (system - prev_system) + (idle - prev_idle) +
-                              (iowait - prev_iowait) + (irq - prev_irq) +
-                              (softirq - prev_softirq) + (steal - prev_steal);
-
-    unsigned long idle_diff = (idle - prev_idle) + (iowait - prev_iowait);
-
-    prev_user = user;
-    prev_nice = nice;
-    prev_system = system;
-    prev_idle = idle;
-    prev_iowait = iowait;
-    prev_irq = irq;
-    prev_softirq = softirq;
-    prev_steal = steal;
-
-    if (total_diff > 0) {
-        float usage = 100.0 * (total_diff - idle_diff) / total_diff;
-        
-        if (usage < 0.0) usage = 0.0;
-        if (usage > 100.0) usage = 100.0;
-        
-        printf("CPU Usage: %.2f%%\n", usage);
+        if (total_diff > 0) {
+            float usage = 100.0 * (total_diff - idle_diff) / total_diff;
+            
+            if (usage < 0.0) usage = 0.0;
+            if (usage > 100.0) usage = 100.0;
+            
+            printf("CPU Usage: %.2f%%\n", usage);
         }
     }
 }
@@ -841,7 +841,7 @@ unsigned long long get_total_cpu_time() {
     // Read the first line which contains aggregate CPU statistics
     if (fgets(buffer, sizeof(buffer), fp)) {
         int matched = sscanf(buffer, "cpu %llu %llu %llu %llu %llu %llu %llu %llu",
-           &user, &nice, &system, &idle, &iowait, &irq, &softirq, &steal);
+               &user, &nice, &system, &idle, &iowait, &irq, &softirq, &steal);
         
         if (matched >= 4) {
             // Calculate total CPU time
@@ -864,14 +864,14 @@ unsigned long long get_total_cpu_time() {
             printf("----------------------------\n");
             printf("Total CPU time: %llu jiffies\n", total_time);
             printf("============================\n\n");
-
-    fclose(fp);
+            
+            fclose(fp);
             return total_time;
         } else {
             printf("Error: Failed to parse /proc/stat. Only %d fields matched.\n", matched);
             fclose(fp);
-    return 0;
-}
+            return 0;
+        }
     } else {
         printf("Error: Cannot read from /proc/stat\n");
         fclose(fp);
@@ -2277,42 +2277,176 @@ int view_system_logs() {
     return 0;
 }
 
-int main() {
-    printf("=== System Monitor Starting ===\n\n");
-    
+int main(int argc, char *argv[]) {
+    // Initialize system components
     init_system_history();
-    print_os_summary();
-    display_hardware_info();
-    int cores = get_core_count();
-    printf("CPU Cores: %d\n", cores);
-    LoadAverage load = get_load_average();
-    printf("Load Average: %.2f, %.2f, %.2f\n", 
-           load.load_1min, load.load_5min, load.load_15min);
-    calculate_cpu_usage();
-    float cpu_temp = get_cpu_temperature();
-    float gpu_temp = get_gpu_temperature();
-    float vrm_temp = get_vrm_temperature();
-    float chipset_temp = get_chipset_temperature();
-    float motherboard_temp = get_motherboard_temperature();
-    float psu_temp = get_psu_temperature();
-    float case_temp = get_case_temperature();
-    printf("Temperatures - CPU: %.2f°C, GPU: %.2f°C, VRM: %.2f°C\n", 
-           cpu_temp, gpu_temp, vrm_temp);
-    find_storage_devices_with_temperature_reporting();
-    for (int i = 0; i < storage_device_count; i++) {
-        float storage_temp = get_storage_temperature(storage_devices[i].path);
-        printf("Storage %s: %.2f°C\n", storage_devices[i].name, storage_temp);
+    
+    // If no arguments provided, show usage
+    if (argc == 1) {
+        printf("get_core_count\n");
+        printf("calculate_cpu_usage\n");
+        printf("read_cpu_stats\n");
+        printf("monitor_cpu_utilization\n");
+        printf("get_load_average\n");
+        printf("get_cpu_temperature\n");
+        printf("get_gpu_temperature\n");
+        printf("get_vrm_temperature\n");
+        printf("get_chipset_temperature\n");
+        printf("get_motherboard_temperature\n");
+        printf("get_psu_temperature\n");
+        printf("get_case_temperature\n");
+        printf("find_storage_devices_with_temperature_reporting\n");
+        printf("detect_all_storage_devices\n");
+        printf("print_smart_data\n"); // Requires sudo
+        printf("display_running_processes\n");
+        printf("display_hardware_info\n"); // Requires sudo
+        printf("print_os_summary\n");
+        printf("print_kernel_details\n");
+        printf("print_distribution_info\n");
+        printf("print_library_versions\n");
+        printf("print_security_info\n");
+        printf("detect_all_package_managers\n");
+        printf("list_manual_installs\n");
+        printf("check_startup_directories\n");
+        printf("check_systemd_user_services\n");
+        printf("show_system_uptime_and_cpu_sleep_time\n");
+        printf("get_total_jiffies\n");
+        printf("check_firewall\n");
+        printf("show_logged_in_users\n");
+        printf("view_system_logs\n");
+        printf("read_journal_logs\n"); // Requires sudo
+        printf("get_total_cpu_time\n");
+        printf("print_uname_info\n");
+        printf("print_detailed_os_info\n");
+        printf("print_system_limits\n");
+        printf("scan_directory directory_name\n");
+        return 0;
     }
-    int process_count = display_running_processes();
-    printf("Total processes: %d\n", process_count);
-    read_cpu_stats();
-    detect_all_storage_devices();
-    print_device_list();
-    show_system_uptime_and_cpu_sleep_time();
-    display_hardware_info();
-    show_logged_in_users();
-    check_firewall();
-
-    printf("\n=== System Monitor Completed ===\n");
+    
+    // Handle specific function calls via command-line arguments
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "get_core_count") == 0) {
+            get_core_count();
+        }
+        else if (strcmp(argv[i], "calculate_cpu_usage") == 0) {
+            calculate_cpu_usage();
+        }
+        else if (strcmp(argv[i], "read_cpu_stats") == 0) {
+            read_cpu_stats();
+        }
+        else if (strcmp(argv[i], "monitor_cpu_utilization") == 0) {
+            monitor_cpu_utilization();
+        }
+        else if (strcmp(argv[i], "get_load_average") == 0) {
+            get_load_average();
+        }
+        else if (strcmp(argv[i], "get_cpu_temperature") == 0) {
+            get_cpu_temperature();
+        }
+        else if (strcmp(argv[i], "get_gpu_temperature") == 0) {
+            get_gpu_temperature();
+        }
+        else if (strcmp(argv[i], "get_vrm_temperature") == 0) {
+            get_vrm_temperature();
+        }
+        else if (strcmp(argv[i], "get_chipset_temperature") == 0) {
+            get_chipset_temperature();
+        }
+        else if (strcmp(argv[i], "get_motherboard_temperature") == 0) {
+            get_motherboard_temperature();
+        }
+        else if (strcmp(argv[i], "get_psu_temperature") == 0) {
+            get_psu_temperature();
+        }
+        else if (strcmp(argv[i], "get_case_temperature") == 0) {
+            get_case_temperature();
+        }
+        else if (strcmp(argv[i], "find_storage_devices_with_temperature_reporting") == 0) {
+            find_storage_devices_with_temperature_reporting();
+        }
+        else if (strcmp(argv[i], "detect_all_storage_devices") == 0) {
+            detect_all_storage_devices();
+        }
+        else if (strcmp(argv[i], "print_smart_data") == 0) {
+            print_smart_data();
+        }
+        else if (strcmp(argv[i], "display_running_processes") == 0) {
+            display_running_processes();
+        }
+        else if (strcmp(argv[i], "display_hardware_info") == 0) {
+            display_hardware_info();
+        }
+        else if (strcmp(argv[i], "print_os_summary") == 0) {
+            print_os_summary();
+        }
+        else if (strcmp(argv[i], "print_kernel_details") == 0) {
+            print_kernel_details();
+        }
+        else if (strcmp(argv[i], "print_distribution_info") == 0) {
+            print_distribution_info();
+        }
+        else if (strcmp(argv[i], "print_library_versions") == 0) {
+            print_library_versions();
+        }
+        else if (strcmp(argv[i], "print_security_info") == 0) {
+            print_security_info();
+        }
+        else if (strcmp(argv[i], "detect_all_package_managers") == 0) {
+            detect_all_package_managers();
+        }
+        else if (strcmp(argv[i], "list_manual_installs") == 0) {
+            list_manual_installs();
+        }
+        else if (strcmp(argv[i], "check_startup_directories") == 0) {
+            check_startup_directories();
+        }
+        else if (strcmp(argv[i], "check_systemd_user_services") == 0) {
+            check_systemd_user_services();
+        }
+        else if (strcmp(argv[i], "show_system_uptime_and_cpu_sleep_time") == 0) {
+            show_system_uptime_and_cpu_sleep_time();
+        }
+        else if (strcmp(argv[i], "get_total_jiffies") == 0) {
+            get_total_jiffies();
+        }
+        else if (strcmp(argv[i], "check_firewall") == 0) {
+            check_firewall();
+        }
+        else if (strcmp(argv[i], "show_logged_in_users") == 0) {
+            show_logged_in_users();
+        }
+        else if (strcmp(argv[i], "view_system_logs") == 0) {
+            view_system_logs();
+        }
+        else if (strcmp(argv[i], "read_journal_logs") == 0) {
+            read_journal_logs();
+        }
+        else if (strcmp(argv[i], "get_total_cpu_time") == 0) {
+            get_total_cpu_time();
+        }
+        else if (strcmp(argv[i], "print_uname_info") == 0) {
+            print_uname_info();
+        }
+        else if (strcmp(argv[i], "print_detailed_os_info") == 0) {
+            print_detailed_os_info();
+        }
+        else if (strcmp(argv[i], "print_system_limits") == 0) {
+            print_system_limits();
+        }
+        else if (strcmp(argv[i], "scan_directory") == 0) {
+            if (i + 1 < argc) {
+                scan_directory(argv[i + 1]);
+                i++; // Skip next argument since we used it as path
+            } else {
+                printf("Usage: %s scan_directory <path>\n", argv[0]);
+            }
+        }
+        else {
+            printf("Unknown command: %s\n", argv[i]);
+            printf("Run without arguments to see available commands.\n");
+            return 1;
+        }
+    }
+    
     return 0;
 }
