@@ -331,6 +331,7 @@ void calculate_cpu_usage() {
     static unsigned long prev_idle = 0, prev_iowait = 0, prev_irq = 0;
     static unsigned long prev_softirq = 0, prev_steal = 0;
 
+    for (int i = 0; i < 2; i++) {
     if (!first_run) {
         sleep(1);
     }
@@ -365,7 +366,7 @@ void calculate_cpu_usage() {
         prev_steal = steal;
         first_run = 0;
         printf("CPU Usage: 0.00%% (first measurement)\n");
-        return;
+            continue;
     }
 
     unsigned long total_diff = (user - prev_user) + (nice - prev_nice) + 
@@ -391,7 +392,7 @@ void calculate_cpu_usage() {
         if (usage > 100.0) usage = 100.0;
         
         printf("CPU Usage: %.2f%%\n", usage);
-        return;
+        }
     }
 }
 
