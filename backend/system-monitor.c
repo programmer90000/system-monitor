@@ -827,14 +827,6 @@ void find_storage_devices_with_temperature_reporting() {
     closedir(dir);
 }
 
-/**
- * Reads temperature from a specific storage device path
- * Returns temperature in Celsius or -1.0 on error
- */
-float get_storage_temperature(const char *path) {
-    return read_temperature_file(path);
-}
-
 // Read total CPU jiffies from /proc/stat
 unsigned long long get_total_cpu_time() {
     FILE *fp = fopen("/proc/stat", "r");
