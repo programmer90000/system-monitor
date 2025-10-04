@@ -1,0 +1,56 @@
+# OS Information
+print_os_summary
+print_detailed_os_info
+print_distribution_info
+print_kernel_details
+print_library_versions
+print_security_info
+print_system_limits
+print_uname_info
+
+# Hardware
+get_core_count
+calculate_cpu_usage
+read_cpu_stats
+monitor_cpu_utilization
+get_load_average
+display_hardware_info
+show_system_uptime_and_cpu_sleep_time
+get_total_jiffies
+get_total_cpu_time
+
+# Temperature Sensors
+get_cpu_temperature
+get_gpu_temperature
+get_vrm_temperature
+get_chipset_temperature
+get_motherboard_temperature
+get_psu_temperature
+get_case_temperature
+
+# Storage
+detect_all_storage_devices
+find_storage_devices_with_temperature_reporting
+print_smart_data
+
+# Logs
+view_system_logs
+read_journal_logs
+
+# Running Processes
+display_running_processes
+
+# Package Managers
+detect_all_package_managers
+
+# Manual Installs
+list_manual_installs
+
+# Security
+check_firewall
+show_logged_in_users
+check_startup_directories
+check_systemd_user_services
+
+# Utilities
+scan_directory directory_name
