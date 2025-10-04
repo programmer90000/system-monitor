@@ -1,6 +1,6 @@
 import React from "react";
 
-const Converter = () => {
+const hardware = () => {
     return (
         <div className = "content-section">
             <h2>Converter</h2>
@@ -18,4 +18,4 @@ const Converter = () => {
     );
 };
 
-export default Converter;
+export default hardware;

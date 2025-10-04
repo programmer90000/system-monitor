@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-const Calculator = () => {
+const osInformation = () => {
     const [input, setInput] = useState("");
     const [result, setResult] = useState("");
 
@@ -25,4 +25,4 @@ const Calculator = () => {
     );
 };
 
-export default Calculator;
+export default osInformation;

@@ -1,6 +1,6 @@
 import React from "react";
 
-const Settings = () => {
+const security = () => {
     return (
         <div className = "content-section">
             <h2>Settings</h2>
@@ -14,4 +14,4 @@ const Settings = () => {
     );
 };
 
-export default Settings;
+export default security;

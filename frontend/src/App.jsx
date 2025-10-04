@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import Sidebar from "./components/sidebar/sidebar";
-import { Dashboard, Overview, Reports, FileManager, Editor, Calculator, Converter, Profile, Settings, Messages, Notifications } from "./screens";
-import "./App.css";
+import { dashboard, osInformation, hardware, temperature, storage, logs, runningProcesses, packageManagers, manualInstalls, security, utilities } from "./screens";
+import "./app.css";
 
 function App() {
     const [cProgramOutput, setCProgramOutput] = useState("");
@@ -43,45 +43,45 @@ function App() {
     const renderContent = () => {
         switch (activeSection) {
         case "dashboard":
-            return <Dashboard/>;
-        case "overview":
-            return <Overview/>;
-        case "reports":
-            return <Reports/>;
-        case "files":
-            return <FileManager/>;
-        case "editor":
-            return <Editor/>;
-        case "calculator":
-            return <Calculator/>;
-        case "converter":
-            return <Converter/>;
-        case "profile":
-            return <Profile/>;
-        case "settings":
-            return <Settings/>;
-        case "messages":
-            return <Messages/>;
-        case "notifications":
-            return <Notifications/>;
+            return <dashboard/>;
+        case "osInformation":
+            return <osInformation/>;
+        case "hardware":
+            return <hardware/>;
+        case "temperature":
+            return <temperature/>;
+        case "storage":
+            return <storage/>;
+        case "logs":
+            return <logs/>;
+        case "runningProcesses":
+            return <runningProcesses/>;
+        case "packageManagers":
+            return <packageManagers/>;
+        case "manualInstalls":
+            return <manualInstalls/>;
+        case "security":
+            return <security/>;
+        case "utilities":
+            return <utilities/>;
         default:
-            return <Dashboard/>;
+            return <dashboard/>;
         }
     };
 
     const getActiveButtonLabel = () => {
         const allButtons = [
             { "id": "dashboard", "label": "Dashboard" },
-            { "id": "overview", "label": "Overview" },
-            { "id": "reports", "label": "Reports" },
-            { "id": "files", "label": "File Manager" },
-            { "id": "editor", "label": "Editor" },
-            { "id": "calculator", "label": "Calculator" },
-            { "id": "converter", "label": "Converter" },
-            { "id": "profile", "label": "Profile" },
-            { "id": "settings", "label": "Settings" },
-            { "id": "messages", "label": "Messages" },
-            { "id": "notifications", "label": "Notifications" },
+            { "id": "osInformation", "label": "OS Information" },
+            { "id": "hardware", "label": "Hardware" },
+            { "id": "temperature", "label": "Temperature" },
+            { "id": "storage", "label": "Storage" },
+            { "id": "logs", "label": "Logs" },
+            { "id": "runningProcesses", "label": "Running Processes" },
+            { "id": "packageManagers", "label": "Package Managers" },
+            { "id": "manualInstalls", "label": "Manual Installs" },
+            { "id": "security", "label": "Security" },
+            { "id": "utilities", "label": "Utilities" },
         ];
 
         const button = allButtons.find((btn) => { return btn.id === activeSection; });

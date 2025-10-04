@@ -1,6 +1,6 @@
 import React from "react";
 
-const Profile = () => {
+const packageManagers = () => {
     return (
         <div className = "content-section">
             <h2>Profile</h2>
@@ -19,4 +19,4 @@ const Profile = () => {
     );
 };
 
-export default Profile;
+export default packageManagers;
