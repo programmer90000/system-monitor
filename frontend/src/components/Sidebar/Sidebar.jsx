@@ -1,11 +1,6 @@
 import React from "react";
 
-const Sidebar = ({ 
-    activeSection, 
-    onSectionChange, 
-    isSidebarCollapsed,
-    onToggleSidebar, 
-}) => {
+const Sidebar = ({ activeSection, onSectionChange, isSidebarCollapsed, onToggleSidebar }) => {
     const sidebarItems = [
         { "id": "dashboard", "label": "Dashboard", "icon": "📊" },
         { "id": "osInformation", "label": "OS Information", "icon": "🐧" },

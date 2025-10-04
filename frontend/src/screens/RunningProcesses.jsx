@@ -1,6 +1,6 @@
 import React from "react";
 
-const logs = () => {
+const RunningProcesses = () => {
     return (
         <div className = "content-section">
             <h2>Messages</h2>
@@ -14,4 +14,4 @@ const logs = () => {
     );
 };
 
-export default logs;
+export default RunningProcesses;

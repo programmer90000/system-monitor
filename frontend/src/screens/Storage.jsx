@@ -1,6 +1,6 @@
 import React from "react";
 
-const storage = () => {
+const Storage = () => {
     return (
         <div className = "content-section">
             <h2>File Manager</h2>
@@ -14,4 +14,4 @@ const storage = () => {
     );
 };
 
-export default storage;
+export default Storage;

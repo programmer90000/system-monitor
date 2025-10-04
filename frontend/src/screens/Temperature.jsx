@@ -1,6 +1,6 @@
 import React from "react";
 
-const temperature = () => {
+const Temperature = () => {
     return (
         <div className = "content-section">
             <h2>Editor</h2>
@@ -10,4 +10,4 @@ const temperature = () => {
     );
 };
 
-export default temperature;
+export default Temperature;

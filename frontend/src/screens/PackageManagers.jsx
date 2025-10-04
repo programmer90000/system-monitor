@@ -1,6 +1,6 @@
 import React from "react";
 
-const packageManagers = () => {
+const PackageManagers = () => {
     return (
         <div className = "content-section">
             <h2>Profile</h2>
@@ -19,4 +19,4 @@ const packageManagers = () => {
     );
 };
 
-export default packageManagers;
+export default PackageManagers;

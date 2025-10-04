@@ -1,6 +1,6 @@
 import React from "react";
 
-const utilities = () => {
+const Utilities = () => {
     return (
         <div className = "content-section">
             <h2>Editor</h2>
@@ -10,4 +10,4 @@ const utilities = () => {
     );
 };
 
-export default utilities;
+export default Utilities;

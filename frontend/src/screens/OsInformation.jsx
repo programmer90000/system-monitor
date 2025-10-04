@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-const osInformation = () => {
+const OsInformation = () => {
     const [input, setInput] = useState("");
     const [result, setResult] = useState("");
 
@@ -25,4 +25,4 @@ const osInformation = () => {
     );
 };
 
-export default osInformation;
+export default OsInformation;

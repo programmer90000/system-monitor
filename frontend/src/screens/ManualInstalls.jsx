@@ -1,6 +1,6 @@
 import React from "react";
 
-const manualInstalls = () => {
+const ManualInstalls = () => {
     return (
         <div className = "content-section">
             <h2>Reports</h2>
@@ -14,4 +14,4 @@ const manualInstalls = () => {
     );
 };
 
-export default manualInstalls;
+export default ManualInstalls;

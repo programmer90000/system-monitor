@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import Sidebar from "./components/sidebar/sidebar";
-import { dashboard, osInformation, hardware, temperature, storage, logs, runningProcesses, packageManagers, manualInstalls, security, utilities } from "./screens";
-import "./app.css";
+import Sidebar from "./components/Sidebar/Sidebar";
+import { Dashboard, OsInformation, Hardware, Temperature, Storage, Logs, RunningProcesses, PackageManagers, ManualInstalls, Security, Utilities } from "./screens";
+import "./App.css";
 
 function App() {
     const [cProgramOutput, setCProgramOutput] = useState("");
@@ -43,29 +43,29 @@ function App() {
     const renderContent = () => {
         switch (activeSection) {
         case "dashboard":
-            return <dashboard/>;
+            return <Dashboard/>;
         case "osInformation":
-            return <osInformation/>;
+            return <OsInformation/>;
         case "hardware":
-            return <hardware/>;
+            return <Hardware/>;
         case "temperature":
-            return <temperature/>;
+            return <Temperature/>;
         case "storage":
-            return <storage/>;
+            return <Storage/>;
         case "logs":
-            return <logs/>;
+            return <Logs/>;
         case "runningProcesses":
-            return <runningProcesses/>;
+            return <RunningProcesses/>;
         case "packageManagers":
-            return <packageManagers/>;
+            return <PackageManagers/>;
         case "manualInstalls":
-            return <manualInstalls/>;
+            return <ManualInstalls/>;
         case "security":
-            return <security/>;
+            return <Security/>;
         case "utilities":
-            return <utilities/>;
+            return <Utilities/>;
         default:
-            return <dashboard/>;
+            return <Dashboard/>;
         }
     };
 
