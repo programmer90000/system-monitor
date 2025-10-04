@@ -2,14 +2,15 @@ import React, { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 const OsInformation = () => {
-    const [osSummary, setOsSummary] = useState("");
-    const [osInfo, setOsInfo] = useState("");
-    const [distributionInfo, setDistributionInfo] = useState("");
-    const [kernelDetails, setKernelDetails] = useState("");
-    const [libraryVersions, setLibraryVersions] = useState("");
-    const [securityInfo, setSecurityInfo] = useState("");
-    const [systemLimits, setSystemLimits] = useState("");
-    const [unameInfo, setUnameInfo] = useState("");
+    const [systemInfo, setSystemInfo] = useState({
+        "osInfo": "",
+        "distributionInfo": "",
+        "kernelDetails": "",
+        "libraryVersions": "",
+        "securityInfo": "",
+        "systemLimits": "",
+        "unameInfo": "",
+    });
 
     const hasRunRef = useRef(false);
 
@@ -22,21 +23,15 @@ const OsInformation = () => {
         const system_limits = await invoke("run_c_program", { "function": "print_system_limits" });
         const uname_info = await invoke("run_c_program", { "function": "print_uname_info" });
 
-        setOsInfo(os_info);
-        setDistributionInfo(distribution_info);
-        setKernelDetails(kernel_details);
-        setLibraryVersions(library_versions);
-        setSecurityInfo(security_info);
-        setSystemLimits(system_limits);
-        setUnameInfo(uname_info);
-
-        console.log(osInfo);
-        console.log(distributionInfo);
-        console.log(kernelDetails);
-        console.log(libraryVersions);
-        console.log(securityInfo);
-        console.log(systemLimits);
-        console.log(unameInfo);
+        setSystemInfo({
+            "osInfo": os_info,
+            "distributionInfo": distribution_info,
+            "kernelDetails": kernel_details,
+            "libraryVersions": library_versions,
+            "securityInfo": security_info,
+            "systemLimits": system_limits,
+            "unameInfo": uname_info,
+        });
     }
 
     useEffect(() => {
@@ -45,6 +40,19 @@ const OsInformation = () => {
             runCProgram();
         }
     }, []);
+
+    useEffect(() => {
+        console.log(`
+osInfo: ${systemInfo.osInfo}
+distributionInfo: ${systemInfo.distributionInfo}
+kernelDetails: ${systemInfo.kernelDetails}
+libraryVersions: ${systemInfo.libraryVersions}
+securityInfo: ${systemInfo.securityInfo}
+systemLimits: ${systemInfo.systemLimits}
+unameInfo: ${systemInfo.unameInfo}
+            `);
+    }, [systemInfo]);
+
     return (
         <div>
             <p>Test</p>
