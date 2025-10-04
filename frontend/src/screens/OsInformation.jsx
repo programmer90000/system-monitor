@@ -14,7 +14,6 @@ const OsInformation = () => {
     const hasRunRef = useRef(false);
 
     async function runCProgram() {
-        const os_summary = await invoke("run_c_program", { "function": "print_os_summary" });
         const os_info = await invoke("run_c_program", { "function": "print_detailed_os_info" });
         const distribution_info = await invoke("run_c_program", { "function": "print_distribution_info" });
         const kernel_details = await invoke("run_c_program", { "function": "print_kernel_details" });
@@ -23,7 +22,6 @@ const OsInformation = () => {
         const system_limits = await invoke("run_c_program", { "function": "print_system_limits" });
         const uname_info = await invoke("run_c_program", { "function": "print_uname_info" });
 
-        setOsSummary(os_summary);
         setOsInfo(os_info);
         setDistributionInfo(distribution_info);
         setKernelDetails(kernel_details);
@@ -32,7 +30,6 @@ const OsInformation = () => {
         setSystemLimits(system_limits);
         setUnameInfo(uname_info);
 
-        console.log(osSummary);
         console.log(osInfo);
         console.log(distributionInfo);
         console.log(kernelDetails);

@@ -1640,20 +1640,6 @@ void print_system_limits() {
     }
 }
 
-void print_os_summary(void) {
-    printf("=== OPERATING SYSTEM DETAILED SUMMARY ===\n");
-    
-    print_uname_info();
-    print_detailed_os_info();
-    print_kernel_details();
-    print_distribution_info();
-    print_library_versions();
-    print_security_info();
-    print_system_limits();
-    
-    printf("\n=== End of OS Summary ===\n");
-}
-
 // Note: To run this function, run the program without root privileges
 void check_startup_directories() {
     printf("\n=== STARTUP APPLICATIONS ===\n");
@@ -2300,7 +2286,6 @@ int main(int argc, char *argv[]) {
         printf("print_smart_data\n"); // Requires sudo
         printf("display_running_processes\n");
         printf("display_hardware_info\n"); // Requires sudo
-        printf("print_os_summary\n");
         printf("print_kernel_details\n");
         printf("print_distribution_info\n");
         printf("print_library_versions\n");
@@ -2375,9 +2360,6 @@ int main(int argc, char *argv[]) {
         }
         else if (strcmp(argv[i], "display_hardware_info") == 0) {
             display_hardware_info();
-        }
-        else if (strcmp(argv[i], "print_os_summary") == 0) {
-            print_os_summary();
         }
         else if (strcmp(argv[i], "print_kernel_details") == 0) {
             print_kernel_details();
