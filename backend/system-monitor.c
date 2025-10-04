@@ -1418,8 +1418,6 @@ void print_kernel_details() {
 }
 
 void print_distribution_info() {
-    printf("\n=== Distribution Information ===\n");
-    
     const char *package_managers[] = {
         "/etc/apt/sources.list",
         "/etc/yum.repos.d/",
@@ -1441,32 +1439,32 @@ void print_distribution_info() {
         "Emerge (Gentoo)"
     };
     
+    // Package Manager
     for (int i = 0; package_managers[i] != NULL; i++) {
         FILE *fp = fopen(package_managers[i], "r");
         if (fp) {
-            printf("Package Manager: %s\n", pm_names[i]);
+            printf("%s\n", pm_names[i]);
             fclose(fp);
             break;
         }
-        
         if (strstr(package_managers[i], "/etc/yum.repos.d/") || 
             strstr(package_managers[i], "/etc/emerge/")) {
             DIR *dir = opendir(package_managers[i]);
             if (dir) {
-                printf("Package Manager: %s\n", pm_names[i]);
+                printf("%s\n", pm_names[i]);
                 closedir(dir);
                 break;
             }
         }
     }
     
-    printf("Init System: ");
+    // Init System
     FILE *fp = fopen("/proc/1/comm", "r");
     if (fp) {
         char init_system[32];
         if (fgets(init_system, sizeof(init_system), fp)) {
             init_system[strcspn(init_system, "\n")] = 0;
-            printf("%s", init_system);
+            printf("%s\n", init_system);
         }
         fclose(fp);
     } else {
@@ -1475,7 +1473,7 @@ void print_distribution_info() {
             char init_system[32];
             if (fgets(init_system, sizeof(init_system), cmd)) {
                 init_system[strcspn(init_system, "\n")] = 0;
-                printf("%s", init_system);
+                printf("%s\n", init_system);
             }
             pclose(cmd);
         } else {
@@ -1484,18 +1482,14 @@ void print_distribution_info() {
             if (len != -1) {
                 init_path[len] = '\0';
                 char *basename = strrchr(init_path, '/');
-                if (basename) {
-                    printf("%s", basename + 1);
-                } else {
-                    printf("%s", init_path);
-                }
+                printf("%s\n", basename ? basename + 1 : init_path);
             } else {
-                printf("Unknown");
+                printf("Unknown\n");
             }
         }
     }
-    printf("\n");
-    
+
+    // Distribution version
     const char *version_files[] = {
         "/etc/debian_version",
         "/etc/redhat-release",
@@ -1508,42 +1502,32 @@ void print_distribution_info() {
         NULL
     };
     
-    const char *distro_names[] = {
-        "Debian",
-        "RedHat",
-        "CentOS",
-        "Fedora", 
-        "SUSE",
-        "Arch",
-        "Slackware",
-        "Gentoo"
-    };
-    
     for (int i = 0; version_files[i] != NULL; i++) {
         fp = fopen(version_files[i], "r");
         if (fp) {
             char version[128];
             if (fgets(version, sizeof(version), fp)) {
                 version[strcspn(version, "\n")] = 0;
-                printf("%s Version: %s\n", distro_names[i], version);
+                printf("%s\n", version);
             }
             fclose(fp);
             break;
         }
     }
     
+    // Systemd version
     fp = fopen("/proc/1/comm", "r");
     if (fp) {
         char init_system[32];
         if (fgets(init_system, sizeof(init_system), fp)) {
             init_system[strcspn(init_system, "\n")] = 0;
             if (strcmp(init_system, "systemd") == 0) {
-                FILE *cmd = popen("systemctl --version 2>/dev/null | head -1", "r");
+                FILE *cmd = popen("systemctl --version 2>/dev/null | head -1 | awk '{print $2}'", "r");
                 if (cmd) {
                     char systemd_version[64];
                     if (fgets(systemd_version, sizeof(systemd_version), cmd)) {
                         systemd_version[strcspn(systemd_version, "\n")] = 0;
-                        printf("Systemd Version: %s\n", systemd_version);
+                        printf("%s\n", systemd_version);
                     }
                     pclose(cmd);
                 }

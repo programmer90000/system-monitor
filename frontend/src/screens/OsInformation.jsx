@@ -42,15 +42,37 @@ const OsInformation = () => {
     }, []);
 
     useEffect(() => {
-        console.log(`
-osInfo: ${systemInfo.osInfo}
-distributionInfo: ${systemInfo.distributionInfo}
-kernelDetails: ${systemInfo.kernelDetails}
-libraryVersions: ${systemInfo.libraryVersions}
-securityInfo: ${systemInfo.securityInfo}
-systemLimits: ${systemInfo.systemLimits}
-unameInfo: ${systemInfo.unameInfo}
-            `);
+        if (!systemInfo) { return; }
+
+        // All system info blocks
+        const allBlocks = [
+            systemInfo.osInfo,
+            systemInfo.distributionInfo,
+            systemInfo.kernelDetails,
+            systemInfo.libraryVersions,
+            systemInfo.securityInfo,
+            systemInfo.systemLimits,
+            systemInfo.unameInfo,
+        ];
+
+        // Keep allValues the same (values only)
+        const allValues = allBlocks.flatMap((block) =>
+        { return (block || "")
+            .split("\n")
+            .map((line) => { return line.trim(); })
+            .map((line) => {
+                if (!line || (/^={3,}/).test(line) || (/^-{3,}/).test(line)) { return null; }
+                const match = line.match(/^[^=:]+[=:]\s*(.*)$/);
+                return match ? match[1].replace(/^"+|"+$/g, "").trim() : line;
+            })
+            .filter(Boolean); },
+        );
+
+        // Log with simple sequential keys
+        allValues.forEach((value) => {
+            console.log(value);
+        });
+
     }, [systemInfo]);
 
     return (
