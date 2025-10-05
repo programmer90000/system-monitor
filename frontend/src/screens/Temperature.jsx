@@ -15,13 +15,69 @@ const Temperature = () => {
     const hasRunRef = useRef(false);
 
     async function runCProgram() {
-        const cpu_temperature = await invoke("run_c_program", { "function": "get_cpu_temperature" });
-        const gpu_temperature = await invoke("run_c_program", { "function": "get_gpu_temperature" });
-        const vrm_temperature = await invoke("run_c_program", { "function": "get_vrm_temperature" });
-        const chipset_temperature = await invoke("run_c_program", { "function": "get_chipset_temperature" });
-        const motherboard_temperature = await invoke("run_c_program", { "function": "get_motherboard_temperature" });
-        const psu_temperature = await invoke("run_c_program", { "function": "get_psu_temperature" });
-        const case_temperature = await invoke("run_c_program", { "function": "get_case_temperature" });
+        let cpu_temperature = "";
+        let gpu_temperature = "";
+        let vrm_temperature = "";
+        let chipset_temperature = "";
+        let motherboard_temperature = "";
+        let psu_temperature = "";
+        let case_temperature = "";
+
+        try {
+            cpu_temperature = await invoke("run_c_program", { "function": "get_cpu_temperature" });
+            console.log("CPU Temperature - Data Loaded");
+        } catch (error) {
+            console.error("Error fetching CPU temperature:", error);
+            cpu_temperature = "Error: Failed to fetch CPU temperature";
+        }
+
+        try {
+            gpu_temperature = await invoke("run_c_program", { "function": "get_gpu_temperature" });
+            console.log("GPU Temperature - Data Loaded");
+        } catch (error) {
+            console.error("Error fetching GPU temperature:", error);
+            gpu_temperature = "Error: Failed to fetch GPU temperature";
+        }
+
+        try {
+            vrm_temperature = await invoke("run_c_program", { "function": "get_vrm_temperature" });
+            console.log("VRM Temperature - Data Loaded");
+        } catch (error) {
+            console.error("Error fetching VRM temperature:", error);
+            vrm_temperature = "Error: Failed to fetch VRM temperature";
+        }
+
+        try {
+            chipset_temperature = await invoke("run_c_program", { "function": "get_chipset_temperature" });
+            console.log("Chipset Temperature - Data Loaded");
+        } catch (error) {
+            console.error("Error fetching chipset temperature:", error);
+            chipset_temperature = "Error: Failed to fetch chipset temperature";
+        }
+
+        try {
+            motherboard_temperature = await invoke("run_c_program", { "function": "get_motherboard_temperature" });
+            console.log("Motherboard Temperature - Data Loaded");
+        } catch (error) {
+            console.error("Error fetching motherboard temperature:", error);
+            motherboard_temperature = "Error: Failed to fetch motherboard temperature";
+        }
+
+        try {
+            psu_temperature = await invoke("run_c_program", { "function": "get_psu_temperature" });
+            console.log("PSU Temperature - Data Loaded");
+        } catch (error) {
+            console.error("Error fetching PSU temperature:", error);
+            psu_temperature = "Error: Failed to fetch PSU temperature";
+        }
+
+        try {
+            case_temperature = await invoke("run_c_program", { "function": "get_case_temperature" });
+            console.log("Case Temperature - Data Loaded");
+        } catch (error) {
+            console.error("Error fetching case temperature:", error);
+            case_temperature = "Error: Failed to fetch case temperature";
+        }
 
         setSystemInfo({
             "cpuTemperature": cpu_temperature,
