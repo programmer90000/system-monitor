@@ -12,10 +12,42 @@ const Security = () => {
     const hasRunRef = useRef(false);
 
     async function runCProgram() {
-        const firewall_status = await invoke("run_c_program", { "function": "check_firewall" });
-        const logged_in_users = await invoke("run_c_program", { "function": "show_logged_in_users" });
-        const startup_directories = await invoke("run_c_program", { "function": "check_startup_directories" });
-        const systemd_user_services = await invoke("run_c_program", { "function": "check_systemd_user_services" });
+        let firewall_status = "";
+        let logged_in_users = "";
+        let startup_directories = "";
+        let systemd_user_services = "";
+
+        try {
+            firewall_status = await invoke("run_c_program", { "function": "check_firewall" });
+            console.log("Firewall Status - Data Loaded");
+        } catch (error) {
+            console.error("Error fetching firewall status:", error);
+            firewall_status = "Error: Failed to fetch firewall status";
+        }
+
+        try {
+            logged_in_users = await invoke("run_c_program", { "function": "show_logged_in_users" });
+            console.log("Logged In Users - Data Loaded");
+        } catch (error) {
+            console.error("Error fetching logged in users:", error);
+            logged_in_users = "Error: Failed to fetch logged in users";
+        }
+
+        try {
+            startup_directories = await invoke("run_c_program", { "function": "check_startup_directories" });
+            console.log("Startup Directories - Data Loaded");
+        } catch (error) {
+            console.error("Error fetching startup directories:", error);
+            startup_directories = "Error: Failed to fetch startup directories";
+        }
+
+        try {
+            systemd_user_services = await invoke("run_c_program", { "function": "check_systemd_user_services" });
+            console.log("Systemd User Services - Data Loaded");
+        } catch (error) {
+            console.error("Error fetching systemd user services:", error);
+            systemd_user_services = "Error: Failed to fetch systemd user services";
+        }
 
         setSystemInfo({
             "firewallStatus": firewall_status,
