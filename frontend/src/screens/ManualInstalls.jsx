@@ -9,7 +9,14 @@ const ManualInstalls = () => {
     const hasRunRef = useRef(false);
 
     async function runCProgram() {
-        const manual_installs = await invoke("run_c_program", { "function": "list_manual_installs" });
+        let manual_installs = "";
+
+        try {
+            manual_installs = await invoke("run_c_program", { "function": "list_manual_installs" });
+            console.log("Manual Installs - Data Loaded");
+        } catch (error) {
+            console.error("Error fetching manual installs:", error);
+        }
 
         setSystemInfo({
             "manualInstalls": manual_installs,
