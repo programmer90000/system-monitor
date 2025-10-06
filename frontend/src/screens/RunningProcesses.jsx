@@ -9,7 +9,14 @@ const RunningProcesses = () => {
     const hasRunRef = useRef(false);
 
     async function runCProgram() {
-        const running_processes = await invoke("run_c_program", { "function": "display_running_processes" });
+        let running_processes = "";
+
+        try {
+            running_processes = await invoke("run_c_program", { "function": "display_running_processes" });
+            console.log("Running Processes - Data Loaded");
+        } catch (error) {
+            console.error("Error fetching running processes:", error);
+        }
 
         setSystemInfo({
             "runningProcesses": running_processes,
