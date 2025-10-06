@@ -9,7 +9,14 @@ const PackageManagers = () => {
     const hasRunRef = useRef(false);
 
     async function runCProgram() {
-        const package_managers = await invoke("run_c_program", { "function": "detect_all_package_managers" });
+        let package_managers = "";
+
+        try {
+            package_managers = await invoke("run_c_program", { "function": "detect_all_package_managers" });
+            console.log("Package Managers - Data Loaded");
+        } catch (error) {
+            console.error("Error fetching package managers:", error);
+        }
 
         setSystemInfo({
             "packageManagers": package_managers,
