@@ -1,99 +1,51 @@
 import React, { useState, useEffect, useRef } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { runCommand } from "../lib/run-commands.js";
 
 const Security = () => {
-    const [systemInfo, setSystemInfo] = useState({
-        "firewallStatus": "",
-        "loggedInUsers": "",
-        "startupDirectories": "",
-        "systemdUserServices": "",
-    });
+    const [firewallStatus, setFirewallStatus] = useState("");
+    const [loggedInUsers, setLoggedInUsers] = useState("");
+    const [startupDirectories, setStartupDirectories] = useState("");
+    const [systemdUserServices, setSystemdUserServices] = useState("");
 
     const hasRunRef = useRef(false);
-
-    async function runCProgram() {
-        let firewall_status = "";
-        let logged_in_users = "";
-        let startup_directories = "";
-        let systemd_user_services = "";
-
-        try {
-            firewall_status = await invoke("run_c_program", { "function": "check_firewall" });
-            console.log("Firewall Status - Data Loaded");
-        } catch (error) {
-            console.error("Error fetching firewall status:", error);
-            firewall_status = "Error: Failed to fetch firewall status";
-        }
-
-        try {
-            logged_in_users = await invoke("run_c_program", { "function": "show_logged_in_users" });
-            console.log("Logged In Users - Data Loaded");
-        } catch (error) {
-            console.error("Error fetching logged in users:", error);
-            logged_in_users = "Error: Failed to fetch logged in users";
-        }
-
-        try {
-            startup_directories = await invoke("run_c_program", { "function": "check_startup_directories" });
-            console.log("Startup Directories - Data Loaded");
-        } catch (error) {
-            console.error("Error fetching startup directories:", error);
-            startup_directories = "Error: Failed to fetch startup directories";
-        }
-
-        try {
-            systemd_user_services = await invoke("run_c_program", { "function": "check_systemd_user_services" });
-            console.log("Systemd User Services - Data Loaded");
-        } catch (error) {
-            console.error("Error fetching systemd user services:", error);
-            systemd_user_services = "Error: Failed to fetch systemd user services";
-        }
-
-        setSystemInfo({
-            "firewallStatus": firewall_status,
-            "loggedInUsers": logged_in_users,
-            "startupDirectories": startup_directories,
-            "systemdUserServices": systemd_user_services,
-        });
-    }
 
     useEffect(() => {
         if (!hasRunRef.current) {
             hasRunRef.current = true;
-            runCProgram();
+
+            Promise.allSettled([
+                runCommand("check_firewall", []).then((output) => {
+                    setFirewallStatus(output);
+                    return { "type": "firewallStatus", "value": output };
+                }),
+
+                runCommand("show_logged_in_users", []).then((output) => {
+                    setLoggedInUsers(output);
+                    return { "type": "loggedInUsers", "value": output };
+                }),
+
+                runCommand("check_startup_directories", []).then((output) => {
+                    setStartupDirectories(output);
+                    return { "type": "startupDirectories", "value": output };
+                }),
+
+                runCommand("check_systemd_user_services", []).then((output) => {
+                    setSystemdUserServices(output);
+                    return { "type": "systemdUserServices", "value": output };
+                }),
+                
+            ]).then((results) => {
+                results.forEach((result, index) => {
+                    if (result.status === "fulfilled") {
+                        console.log(`${result.value.type}:`, result.value.value);
+                    }
+                    if (result.status === "rejected") {
+                        console.error(`Command ${index} failed:`, result.reason);
+                    }
+                });
+            });
         }
     }, []);
-
-    useEffect(() => {
-        if (!systemInfo) { return; }
-
-        // All system info blocks
-        const allBlocks = [
-            systemInfo.firewallStatus,
-            systemInfo.loggedInUsers,
-            systemInfo.startupDirectories,
-            systemInfo.systemdUserServices,
-        ];
-
-        // Keep allValues the same (values only)
-        const allValues = allBlocks.flatMap((block) =>
-        { return (block || "")
-            .split("\n")
-            .map((line) => { return line.trim(); })
-            .map((line) => {
-                if (!line || (/^={3,}/).test(line) || (/^-{3,}/).test(line)) { return null; }
-                const match = line.match(/^[^=:]+[=:]\s*(.*)$/);
-                return match ? match[1].replace(/^"+|"+$/g, "").trim() : line;
-            })
-            .filter(Boolean); },
-        );
-
-        // Log with simple sequential keys
-        allValues.forEach((value) => {
-            console.log(value);
-        });
-
-    }, [systemInfo]);
 
     return (
         <div>
