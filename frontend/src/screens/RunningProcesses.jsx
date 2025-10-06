@@ -1,62 +1,32 @@
 import React, { useState, useEffect, useRef } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { runCommand } from "../lib/run-commands.js";
 
 const RunningProcesses = () => {
-    const [systemInfo, setSystemInfo] = useState({
-        "runningProcesses": "",
-    });
+    const [runningProcesses, setRunningProcesses] = useState("");
 
     const hasRunRef = useRef(false);
-
-    async function runCProgram() {
-        let running_processes = "";
-
-        try {
-            running_processes = await invoke("run_c_program", { "function": "display_running_processes" });
-            console.log("Running Processes - Data Loaded");
-        } catch (error) {
-            console.error("Error fetching running processes:", error);
-        }
-
-        setSystemInfo({
-            "runningProcesses": running_processes,
-        });
-    }
 
     useEffect(() => {
         if (!hasRunRef.current) {
             hasRunRef.current = true;
-            runCProgram();
+
+            Promise.allSettled([
+                runCommand("display_running_processes", []).then((output) => {
+                    setRunningProcesses(output);
+                    return { "type": "runningProcesses", "value": output };
+                }),                
+            ]).then((results) => {
+                results.forEach((result, index) => {
+                    if (result.status === "fulfilled") {
+                        console.log(`${result.value.type}:`, result.value.value);
+                    }
+                    if (result.status === "rejected") {
+                        console.error(`Command ${index} failed:`, result.reason);
+                    }
+                });
+            });
         }
     }, []);
-
-    useEffect(() => {
-        if (!systemInfo) { return; }
-
-        // All system info blocks
-        const allBlocks = [
-            systemInfo.runningProcesses,
-        ];
-
-        // Keep allValues the same (values only)
-        const allValues = allBlocks.flatMap((block) =>
-        { return (block || "")
-            .split("\n")
-            .map((line) => { return line.trim(); })
-            .map((line) => {
-                if (!line || (/^={3,}/).test(line) || (/^-{3,}/).test(line)) { return null; }
-                const match = line.match(/^[^=:]+[=:]\s*(.*)$/);
-                return match ? match[1].replace(/^"+|"+$/g, "").trim() : line;
-            })
-            .filter(Boolean); },
-        );
-
-        // Log with simple sequential keys
-        allValues.forEach((value) => {
-            console.log(value);
-        });
-
-    }, [systemInfo]);
 
     return (
         <div>
