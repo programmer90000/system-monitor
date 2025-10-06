@@ -39,10 +39,19 @@ fn run_c_program(function: &str) -> String {
 
 #[tauri::command]
 fn run_sudo_command(function: String, args: Vec<String>) -> String {
-    println!("Attempting to run sudo command: {} {:?}", function, args);
+    // Use absolute path from the project root
+    let mut c_program_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    c_program_path.pop(); // Go up from src-tauri
+    c_program_path.pop(); // Go up from frontend  
+    c_program_path.push("backend");
+    c_program_path.push("system-monitor");
+    
+    println!("Looking for C program at: {:?}", c_program_path);
+    println!("Calling function: {}", function);
     
     // Use pkexec for GUI password prompt handled by the system
     let output = Command::new("pkexec")
+        .arg(&c_program_path)
         .arg(&function)
         .args(&args)
         .output();
