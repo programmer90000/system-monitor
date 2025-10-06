@@ -18,10 +18,17 @@ function App() {
         console.log(cProgramOutput);
     }
 
+    async function runSudoCommand(command, args = []) {
+        const output = await invoke("run_sudo_command", { command, args });
+        setCProgramOutput(output);
+        console.log("Sudo command output:", output);
+    }
+
     useEffect(() => {
         if (!hasRunRef.current) {
             hasRunRef.current = true;
             runCProgram();
+            runSudoCommand("ls", ["/proc/"]);
         }
     }, []);
 

@@ -37,11 +37,52 @@ fn run_c_program(function: &str) -> String {
     }
 }
 
+#[tauri::command]
+fn run_sudo_command(command: String, args: Vec<String>) -> String {
+    println!("Attempting to run sudo command: {} {:?}", command, args);
+    
+    // Use pkexec for GUI password prompt handled by the system
+    let output = Command::new("pkexec")
+        .arg(&command)
+        .args(&args)
+        .output();
+    
+    match output {
+        Ok(output) => {
+            if output.status.success() {
+                let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+                println!("Sudo command executed successfully");
+                stdout
+            } else {
+                let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+                println!("Sudo command failed: {}", stderr);
+                
+                // Compare Option<i32> with Some(126) instead of 126
+                if stderr.contains("not authorized") || output.status.code() == Some(126) {
+                    "Error: Authentication failed or cancelled".to_string()
+                } else {
+                    format!("Error: {}", stderr)
+                }
+            }
+        }
+        Err(e) => {
+            let error_msg = format!("Failed to execute sudo command: {}", e);
+            println!("{}", error_msg);
+            
+            if error_msg.contains("No such file or directory") {
+                "Error: pkexec not available on this system".to_string()
+            } else {
+                error_msg
+            }
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![run_c_program])
+        .invoke_handler(tauri::generate_handler![run_c_program, run_sudo_command])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
