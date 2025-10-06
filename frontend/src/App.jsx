@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import React, { useState, useRef, useEffect } from "react";
 import Sidebar from "./components/Sidebar/Sidebar";
 import { Dashboard, OsInformation, Hardware, Temperature, Storage, Logs, RunningProcesses, PackageManagers, ManualInstalls, Security, Utilities } from "./screens";
 import "./App.css";
+import { runCommand, runSudoCommand } from "./lib/run-commands.js";
 
 function App() {
     const [cProgramOutput, setCProgramOutput] = useState("");
@@ -13,18 +13,23 @@ function App() {
 
     const hasRunRef = useRef(false);
 
-    async function runCProgram(functionName, args = []) {
-        const output = await invoke("run_c_program", { "function": functionName, args });
-        setCProgramOutput(output);
-        console.log(output);
-    }
 
-    async function runSudoCommand(functionName, args = []) {
-        const output = await invoke("run_sudo_command", { "function": functionName, args });
-        setSudoCommandOutput(output);
-        console.log("Sudo command output:", output);
-    }
-
+    useEffect(() => {
+        if (!hasRunRef.current) {
+            hasRunRef.current = true;
+        
+            Promise.allSettled([
+                runCommand("calculate_cpu_usage", []).then((output) => { return setCProgramOutput(output); }),
+                runSudoCommand("ls", ["/proc/"]).then((output) => { return setCProgramOutput(output); }),
+            ]).then((results) => {
+                results.forEach((result, index) => {
+                    if (result.status === "rejected") {
+                        console.error(`Command ${index} failed:`, result.reason);
+                    }
+                });
+            });
+        }
+    }, []);
     const handleSectionChange = (sectionId) => {
         setActiveSection(sectionId);
     };
