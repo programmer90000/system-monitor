@@ -6,29 +6,39 @@ import "./App.css";
 
 function App() {
     const [cProgramOutput, setCProgramOutput] = useState("");
+    const [sudoCommandOutput, setSudoCommandOutput] = useState("");
     const [activeSection, setActiveSection] = useState("dashboard");
     const [expandedGroups, setExpandedGroups] = useState({ "main": true, "tools": true, "account": true });
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
     const hasRunRef = useRef(false);
 
-    async function runCProgram() {
-        const output = await invoke("run_c_program", { "function": "calculate_cpu_usage" });
+    async function runCProgram(functionName, args = []) {
+        const output = await invoke("run_c_program", { "function": functionName, args });
         setCProgramOutput(output);
-        console.log(cProgramOutput);
+        console.log(output);
     }
 
-    async function runSudoCommand(command, args = []) {
-        const output = await invoke("run_sudo_command", { command, args });
-        setCProgramOutput(output);
+    async function runSudoCommand(functionName, args = []) {
+        const output = await invoke("run_sudo_command", { "function": functionName, args });
+        setSudoCommandOutput(output);
         console.log("Sudo command output:", output);
     }
 
     useEffect(() => {
         if (!hasRunRef.current) {
             hasRunRef.current = true;
-            runCProgram();
-            runSudoCommand("ls", ["/proc/"]);
+        
+            Promise.allSettled([
+                runCProgram("calculate_cpu_usage"),
+                runSudoCommand("ls", ["/proc/"]),
+            ]).then((results) => {
+                results.forEach((result, index) => {
+                    if (result.status === "rejected") {
+                        console.error(`Command ${index} failed:`, result.reason);
+                    }
+                });
+            });
         }
     }, []);
 

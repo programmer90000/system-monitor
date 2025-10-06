@@ -38,12 +38,12 @@ fn run_c_program(function: &str) -> String {
 }
 
 #[tauri::command]
-fn run_sudo_command(command: String, args: Vec<String>) -> String {
-    println!("Attempting to run sudo command: {} {:?}", command, args);
+fn run_sudo_command(function: String, args: Vec<String>) -> String {
+    println!("Attempting to run sudo command: {} {:?}", function, args);
     
     // Use pkexec for GUI password prompt handled by the system
     let output = Command::new("pkexec")
-        .arg(&command)
+        .arg(&function)
         .args(&args)
         .output();
     
