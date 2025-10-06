@@ -1,62 +1,32 @@
 import React, { useState, useEffect, useRef } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { runCommand } from "../lib/run-commands.js";
 
 const ManualInstalls = () => {
-    const [systemInfo, setSystemInfo] = useState({
-        "manualInstalls": "",
-    });
+    const [manualInstalls, setManualInstalls] = useState("");
 
     const hasRunRef = useRef(false);
-
-    async function runCProgram() {
-        let manual_installs = "";
-
-        try {
-            manual_installs = await invoke("run_c_program", { "function": "list_manual_installs" });
-            console.log("Manual Installs - Data Loaded");
-        } catch (error) {
-            console.error("Error fetching manual installs:", error);
-        }
-
-        setSystemInfo({
-            "manualInstalls": manual_installs,
-        });
-    }
 
     useEffect(() => {
         if (!hasRunRef.current) {
             hasRunRef.current = true;
-            runCProgram();
+
+            Promise.allSettled([
+                runCommand("list_manual_installs", []).then((output) => {
+                    setManualInstalls(output);
+                    return output;
+                }),
+            ]).then((results) => {
+                results.forEach((result, index) => {
+                    if (result.status === "fulfilled") {
+                        console.log(result.value);
+                    }
+                    if (result.status === "rejected") {
+                        console.error(`Command ${index} failed: ${result.reason}`);
+                    }
+                });
+            });
         }
     }, []);
-
-    useEffect(() => {
-        if (!systemInfo) { return; }
-
-        // All system info blocks
-        const allBlocks = [
-            systemInfo.manualInstalls,
-        ];
-
-        // Keep allValues the same (values only)
-        const allValues = allBlocks.flatMap((block) =>
-        { return (block || "")
-            .split("\n")
-            .map((line) => { return line.trim(); })
-            .map((line) => {
-                if (!line || (/^={3,}/).test(line) || (/^-{3,}/).test(line)) { return null; }
-                const match = line.match(/^[^=:]+[=:]\s*(.*)$/);
-                return match ? match[1].replace(/^"+|"+$/g, "").trim() : line;
-            })
-            .filter(Boolean); },
-        );
-
-        // Log with simple sequential keys
-        allValues.forEach((value) => {
-            console.log(value);
-        });
-
-    }, [systemInfo]);
 
     return (
         <div>
