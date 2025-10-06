@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { runCommand } from "../lib/run-commands.js";
 
 const PackageManagers = () => {
