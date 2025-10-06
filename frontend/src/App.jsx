@@ -1,8 +1,7 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import Sidebar from "./components/Sidebar/Sidebar";
 import { Dashboard, OsInformation, Hardware, Temperature, Storage, Logs, RunningProcesses, PackageManagers, ManualInstalls, Security, Utilities } from "./screens";
 import "./App.css";
-import { runCommand, runSudoCommand } from "./lib/run-commands.js";
 
 function App() {
     const [cProgramOutput, setCProgramOutput] = useState("");
@@ -11,25 +10,6 @@ function App() {
     const [expandedGroups, setExpandedGroups] = useState({ "main": true, "tools": true, "account": true });
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-    const hasRunRef = useRef(false);
-
-
-    useEffect(() => {
-        if (!hasRunRef.current) {
-            hasRunRef.current = true;
-        
-            Promise.allSettled([
-                runCommand("calculate_cpu_usage", []).then((output) => { return setCProgramOutput(output); }),
-                runSudoCommand("ls", ["/proc/"]).then((output) => { return setCProgramOutput(output); }),
-            ]).then((results) => {
-                results.forEach((result, index) => {
-                    if (result.status === "rejected") {
-                        console.error(`Command ${index} failed:`, result.reason);
-                    }
-                });
-            });
-        }
-    }, []);
     const handleSectionChange = (sectionId) => {
         setActiveSection(sectionId);
     };
