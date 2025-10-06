@@ -4,8 +4,6 @@ import { Dashboard, OsInformation, Hardware, Temperature, Storage, Logs, Running
 import "./App.css";
 
 function App() {
-    const [cProgramOutput, setCProgramOutput] = useState("");
-    const [sudoCommandOutput, setSudoCommandOutput] = useState("");
     const [activeSection, setActiveSection] = useState("dashboard");
     const [expandedGroups, setExpandedGroups] = useState({ "main": true, "tools": true, "account": true });
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
