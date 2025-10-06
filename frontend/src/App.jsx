@@ -25,23 +25,6 @@ function App() {
         console.log("Sudo command output:", output);
     }
 
-    useEffect(() => {
-        if (!hasRunRef.current) {
-            hasRunRef.current = true;
-        
-            Promise.allSettled([
-                runCProgram("calculate_cpu_usage"),
-                runSudoCommand("ls", ["/proc/"]),
-            ]).then((results) => {
-                results.forEach((result, index) => {
-                    if (result.status === "rejected") {
-                        console.error(`Command ${index} failed:`, result.reason);
-                    }
-                });
-            });
-        }
-    }, []);
-
     const handleSectionChange = (sectionId) => {
         setActiveSection(sectionId);
     };
