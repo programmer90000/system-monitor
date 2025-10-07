@@ -5,7 +5,7 @@ use std::path::PathBuf;
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
 #[tauri::command]
-fn run_c_program(function: &str) -> String {
+fn run_c_program(function: &str, args: Vec<String>) -> String {
     // Use absolute path from the project root
     let mut c_program_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     c_program_path.pop(); // Go up from src-tauri
@@ -14,10 +14,18 @@ fn run_c_program(function: &str) -> String {
     c_program_path.push("system-monitor");
     
     println!("Looking for C program at: {:?}", c_program_path);
-    println!("Calling function: {}", function);
+    println!("Calling function: {} with args: {:?}", function, args);
     
-    // Execute the C program with the function argument
-    match Command::new(&c_program_path).arg(function).output() {
+    // Execute the C program with the function argument and any additional args
+    let mut command = Command::new(&c_program_path);
+    command.arg(function);
+    
+    // Add all the arguments
+    for arg in args {
+        command.arg(arg);
+    }
+    
+    match command.output() {
         Ok(output) => {
             if output.status.success() {
                 let stdout = String::from_utf8_lossy(&output.stdout).to_string();
