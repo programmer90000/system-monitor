@@ -75,12 +75,6 @@ function App() {
         <div className = "app">
             <Sidebar activeSection = {activeSection} onSectionChange = {handleSectionChange} expandedGroups = {expandedGroups} onToggleGroup = {handleToggleGroup} isSidebarCollapsed = {isSidebarCollapsed} onToggleSidebar = {toggleSidebar}/>
             <div className = "main-content">
-                <header className = "content-header">
-                    <div className = "content-header-left">
-                        <button className = "mobile-sidebar-toggle" onClick = {toggleSidebar}/>
-                        <h2>{getActiveButtonLabel()}</h2>
-                    </div>
-                </header>
                 <main className = "content-main">{renderContent()}</main>
             </div>
         </div>
