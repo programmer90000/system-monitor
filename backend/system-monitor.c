@@ -2056,11 +2056,8 @@ void display_hardware_info() {
 void monitor_cpu_utilization() {
     CPUUtilization prev, curr;
     
-    printf("Real-time CPU utilization monitoring\n");
-    
-    printf("%-20s %-12s %-12s %-12s %-12s\n", 
-           "Timestamp", "User%", "System%", "IOWait%", "Total%");
-    printf("-------------------------------------------------------------\n");
+    printf("CPU Utilization Sample\n");
+    printf("=====================\n");
     
     // First reading
     FILE *fp = fopen("/proc/stat", "r");
@@ -2079,75 +2076,67 @@ void monitor_cpu_utilization() {
     
     sleep(1);
     
-    while (1) {
-        // Get current timestamp
-        time_t now = time(NULL);
-        struct tm *tm_info = localtime(&now);
-        char timestamp[20];
-        strftime(timestamp, sizeof(timestamp), "%H:%M:%S", tm_info);
-        
-        // Second reading
-        fp = fopen("/proc/stat", "r");
-        if (!fp) {
-            perror("Error opening /proc/stat");
-            return;
-        }
-        
-        if (fgets(line, sizeof(line), fp)) {
-            sscanf(line, "cpu %lu %lu %lu %lu %lu %lu %lu %lu",
-                   &curr.user, &curr.nice, &curr.system, &curr.idle,
-                   &curr.iowait, &curr.irq, &curr.softirq, &curr.steal);
-        }
-        fclose(fp);
-        
-        // Calculate total idle time (idle + iowait)
-        unsigned long prev_idle = prev.idle + prev.iowait;
-        unsigned long curr_idle = curr.idle + curr.iowait;
-        
-        // Calculate total non-idle time
-        unsigned long prev_non_idle = prev.user + prev.nice + prev.system + 
-                                     prev.irq + prev.softirq + prev.steal;
-        unsigned long curr_non_idle = curr.user + curr.nice + curr.system + 
-                                     curr.irq + curr.softirq + curr.steal;
-        
-        // Calculate total time
-        unsigned long prev_total = prev_idle + prev_non_idle;
-        unsigned long curr_total = curr_idle + curr_non_idle;
-        
-        // Calculate differences
-        unsigned long total_delta = curr_total - prev_total;
-        unsigned long idle_delta = curr_idle - prev_idle;
-        
-        double total_utilization = 0.0;
-        if (total_delta > 0) {
-            total_utilization = ((double)(total_delta - idle_delta) / total_delta) * 100.0;
-        }
-        
-        unsigned long total_prev = (prev.user + prev.nice + prev.system + prev.idle + 
-                                  prev.iowait + prev.irq + prev.softirq + prev.steal);
-        unsigned long total_curr = (curr.user + curr.nice + curr.system + curr.idle + 
-                                  curr.iowait + curr.irq + curr.softirq + curr.steal);
-        unsigned long total_component_delta = total_curr - total_prev;
-        
-        double user_pct = 0.0;
-        double system_pct = 0.0;
-        double iowait_pct = 0.0;
-        
-        if (total_component_delta > 0) {
-            user_pct = ((double)(curr.user - prev.user) / total_component_delta) * 100;
-            system_pct = ((double)(curr.system - prev.system) / total_component_delta) * 100;
-            iowait_pct = ((double)(curr.iowait - prev.iowait) / total_component_delta) * 100;
-        }
-        
-        printf("%-20s %-12.1f %-12.1f %-12.1f %-12.1f\n", 
-               timestamp, user_pct, system_pct, iowait_pct, total_utilization);
-        
-        fflush(stdout);
-        
-        prev = curr;
-        
-        sleep(1);
+    // Get current timestamp
+    time_t now = time(NULL);
+    struct tm *tm_info = localtime(&now);
+    char timestamp[20];
+    strftime(timestamp, sizeof(timestamp), "%H:%M:%S", tm_info);
+    
+    // Second reading
+    fp = fopen("/proc/stat", "r");
+    if (!fp) {
+        perror("Error opening /proc/stat");
+        return;
     }
+    
+    if (fgets(line, sizeof(line), fp)) {
+        sscanf(line, "cpu %lu %lu %lu %lu %lu %lu %lu %lu",
+               &curr.user, &curr.nice, &curr.system, &curr.idle,
+               &curr.iowait, &curr.irq, &curr.softirq, &curr.steal);
+    }
+    fclose(fp);
+    
+    // Calculate percentages
+    unsigned long prev_idle = prev.idle + prev.iowait;
+    unsigned long curr_idle = curr.idle + curr.iowait;
+    
+    unsigned long prev_non_idle = prev.user + prev.nice + prev.system + 
+                                 prev.irq + prev.softirq + prev.steal;
+    unsigned long curr_non_idle = curr.user + curr.nice + curr.system + 
+                                 curr.irq + curr.softirq + curr.steal;
+    
+    unsigned long prev_total = prev_idle + prev_non_idle;
+    unsigned long curr_total = curr_idle + curr_non_idle;
+    
+    unsigned long total_delta = curr_total - prev_total;
+    unsigned long idle_delta = curr_idle - prev_idle;
+    
+    double total_utilization = 0.0;
+    if (total_delta > 0) {
+        total_utilization = ((double)(total_delta - idle_delta) / total_delta) * 100.0;
+    }
+    
+    unsigned long total_prev = (prev.user + prev.nice + prev.system + prev.idle + 
+                              prev.iowait + prev.irq + prev.softirq + prev.steal);
+    unsigned long total_curr = (curr.user + curr.nice + curr.system + curr.idle + 
+                              curr.iowait + curr.irq + curr.softirq + curr.steal);
+    unsigned long total_component_delta = total_curr - total_prev;
+    
+    double user_pct = 0.0;
+    double system_pct = 0.0;
+    double iowait_pct = 0.0;
+    
+    if (total_component_delta > 0) {
+        user_pct = ((double)(curr.user - prev.user) / total_component_delta) * 100;
+        system_pct = ((double)(curr.system - prev.system) / total_component_delta) * 100;
+        iowait_pct = ((double)(curr.iowait - prev.iowait) / total_component_delta) * 100;
+    }
+    
+    printf("Timestamp: %s\n", timestamp);
+    printf("User: %.1f%%\n", user_pct);
+    printf("System: %.1f%%\n", system_pct);
+    printf("IOWait: %.1f%%\n", iowait_pct);
+    printf("Total: %.1f%%\n", total_utilization);
 }
 
 void check_firewall() {
