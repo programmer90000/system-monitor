@@ -249,7 +249,6 @@ const Storage = () => {
 
                 results.forEach((result, index) => {
                     if (result.status === "fulfilled") {
-                        console.log(`${result.value.type}:`, result.value.parsed);
                         allParsedData[result.value.type] = result.value.parsed;
                     }
                     if (result.status === "rejected") {

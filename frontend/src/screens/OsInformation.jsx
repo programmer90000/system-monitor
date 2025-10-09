@@ -139,7 +139,6 @@ const OsInformation = () => {
                 results.forEach((result) => {
                     if (result.status === "fulfilled") {
                         allData[result.value.type] = result.value.value;
-                        console.log(`${result.value.type}:`, result.value.value);
                     }
                     if (result.status === "rejected") {
                         console.error(`Command ${index} failed:`, result.reason);
