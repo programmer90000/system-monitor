@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { runCommand, runSudoCommand } from "../lib/run-commands.js";
+import { getLogs } from "../../services/SystemService.js";
 
 const Logs = () => {
     const [systemLogs, setSystemLogs] = useState();
@@ -10,28 +10,7 @@ const Logs = () => {
     useEffect(() => {
         if (!hasRunRef.current) {
             hasRunRef.current = true;
-
-            Promise.allSettled([
-                runCommand("view_system_logs", []).then((output) => {
-                    setSystemLogs(output);
-                    return { "type": "systemLogs", "value": output };
-                }),
-                runSudoCommand("read_journal_logs", []).then((output) => {
-                    setJournalLogs(output);
-                    return { "type": "journalLogs", "value": output };
-                }),
-
-            ]).then((results) => {
-
-                results.forEach((result, index) => {
-                    if (result.status === "fulfilled") {
-                        console.log(result);
-                    }
-                    if (result.status === "rejected") {
-                        console.error(`Command ${index} failed:`, result.reason);
-                    }
-                });
-            });
+            getLogs(setSystemLogs, setJournalLogs);
         }
     }, []);
 

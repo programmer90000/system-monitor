@@ -1,5 +1,5 @@
 import React from "react";
-import { runCommand } from "../src/lib/run-commands.js";
+import { runCommand, runSudoCommand } from "../src/lib/run-commands.js";
 
 const getHardwareData = () => {
     Promise.allSettled([
@@ -204,4 +204,28 @@ const getHardwareData = () => {
     });
 };
 
-export { getHardwareData };
+const getLogs = (setSystemLogs, setJournalLogs) => {
+    Promise.allSettled([
+        runCommand("view_system_logs", []).then((output) => {
+            setSystemLogs(output);
+            return { "type": "systemLogs", "value": output };
+        }),
+        runSudoCommand("read_journal_logs", []).then((output) => {
+            setJournalLogs(output);
+            return { "type": "journalLogs", "value": output };
+        }),
+
+    ]).then((results) => {
+
+        results.forEach((result, index) => {
+            if (result.status === "fulfilled") {
+                console.log(result);
+            }
+            if (result.status === "rejected") {
+                console.error(`Command ${index} failed:`, result.reason);
+            }
+        });
+    });
+};
+
+export { getHardwareData, getLogs };
