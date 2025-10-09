@@ -5,6 +5,37 @@ const Utilities = () => {
     const [directoryPath, setDirectoryPath] = useState("");
     const [isScanning, setIsScanning] = useState(false);
 
+    const parseDirectoryScan = (output) => {
+        try {
+            const lines = output.split("\n").filter((line) => { return line.trim(); });
+            const result = {
+                "directory": directoryPath.trim(),
+                "totalItems": lines.length,
+                "items": [],
+            };
+
+            lines.forEach((line) => {
+                const fullPath = line.trim();
+                const fileName = fullPath.split("/").pop();
+                const isDirectory = !fileName.includes(".");
+            
+                const item = {
+                    "name": fileName,
+                    "fullPath": fullPath,
+                    "type": isDirectory ? "directory" : "file",
+                    "extension": fileName.includes(".") ? fileName.split(".").pop() : "",
+                };
+            
+                result.items.push(item);
+            });
+
+            return result;
+        } catch (error) {
+            console.error("Error parsing directory scan:", error);
+            return { "directory": directoryPath.trim(), "totalItems": 0, "items": [], "error": error.message };
+        }
+    };
+
     const handleScanDirectory = () => {
         if (!directoryPath.trim()) {
             alert("Please enter a directory path");
@@ -12,10 +43,11 @@ const Utilities = () => {
         }
 
         setIsScanning(true);
-        
+
         runCommand("scan_directory", [directoryPath.trim()])
             .then((output) => {
-                console.log("Directory contents:", output);
+                const parsedData = parseDirectoryScan(output);
+                console.log(parsedData);
             })
             .catch((error) => {
                 console.error("Scan failed:", error);
