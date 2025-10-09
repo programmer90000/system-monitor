@@ -1767,7 +1767,7 @@ void scan_directory(const char *path) {
             printf("[DIR] %s\n", fullpath);
             scan_directory(fullpath);
         } else {
-            printf("%s\n", fullpath);
+            printf("[FILE] %s\n", fullpath);
         }
     }
 

@@ -17,13 +17,17 @@ const Utilities = () => {
             lines.forEach((line) => {
                 const fullPath = line.trim();
                 const fileName = fullPath.split("/").pop();
-                const isDirectory = !fileName.includes(".");
+
+                // Check for [DIR] or [FILE] markers
+                const isDirectory = line.startsWith("[DIR]");
+                const isFile = line.startsWith("[FILE]");
+                const cleanPath = fullPath.replace(/^\[(DIR|FILE)\] /, "");
             
                 const item = {
                     "name": fileName,
-                    "fullPath": fullPath,
+                    "fullPath": cleanPath,
                     "type": isDirectory ? "directory" : "file",
-                    "extension": fileName.includes(".") ? fileName.split(".").pop() : "",
+                    "extension": isFile && fileName.includes(".") ? fileName.split(".").pop() : "",
                 };
             
                 result.items.push(item);
