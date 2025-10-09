@@ -356,4 +356,71 @@ const getOsInformation = (setOsInformation, setParsedData) => {
     });
 };
 
-export { getHardwareData, getLogs, getOsInformation };
+const getPackageManagers = (setPackageManagers, setParsedData) => {
+    runCommand("detect_all_package_managers", [])
+        .then((output) => {
+            setPackageManagers(output);
+
+            const parse = (logs) => {
+                const result = {};
+                if (!logs) { return result; }
+                const lines = logs.split("\n");
+                let currentManager = null;
+                for (const line of lines) {
+                    const managerMatch = line.match(/(apt|yum|dnf|pacman|zypper|brew|choco|winget) detected:/);
+                    if (managerMatch) {
+                        currentManager = managerMatch[1];
+                        const versionMatch = line.match(/: (.+)$/);
+                        result[currentManager] = {
+                            "version": versionMatch ? versionMatch[1].trim() : null,
+                            "available": true,
+                            "packages": {},
+                        };
+                        continue;
+                    }
+                    const notFoundMatch = line.match(/(apt|yum|dnf|pacman|zypper|brew|choco|winget) detected: sh: .*not found/);
+                    if (notFoundMatch) {
+                        const manager = notFoundMatch[1];
+                        result[manager] = {
+                            "available": false,
+                            "error": "Command not found",
+                            "packages": {},
+                        };
+                        continue;
+                    }
+                    if (currentManager && result[currentManager] && result[currentManager].available && line.trim() && !line.includes("WARNING:") && !line.includes("Listing...") && !line.includes("Installed packages for") && !line.match(/sh: .*not found/)) {
+                        const packageMatch = line.match(/^\s*([^\/\s]+)\/([^,\s]+)(?:,([^ ]+))?\s+([^ ]+)\s+([^ ]+)\s+(\[.+\])?/);
+                        if (packageMatch) {
+                            const [, packageName, version, status, repo, arch, flags] = packageMatch;
+                            const cleanPackageName = packageName.trim();
+                            result[currentManager].packages[cleanPackageName] = {
+                                "version": version.trim(),
+                                "status": status ? status.trim() : "",
+                                "repository": repo.trim(),
+                                "architecture": arch.trim(),
+                                "flags": flags ? flags.replace(/[\[\]]/g, "").split(",").map((f) => { return f.trim(); }) : [],
+                            };
+                        } else if (line.trim()) {
+                            const rawLine = line.trim();
+                            const fallbackName = rawLine.split("/")[0]?.trim() || rawLine;
+                            result[currentManager].packages[fallbackName] = {
+                                "raw": rawLine,
+                                "version": "unknown",
+                                "status": "unknown",
+                                "repository": "unknown",
+                                "architecture": "unknown",
+                                "flags": [],
+                            };
+                        }
+                    }
+                }
+                return result;
+            };
+
+            const parsed = parse(output);
+            setParsedData(parsed);
+            console.log("Parsed Package Managers:", parsed);
+        });
+};
+
+export { getHardwareData, getLogs, getOsInformation, getPackageManagers };
