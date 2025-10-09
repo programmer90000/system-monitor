@@ -1799,12 +1799,13 @@ void list_manual_installs() {
 void read_journal_logs() {
     FILE *fp;
     char buffer[1024];
+    int read_error = 0;
 
-    // Open the journalctl command
-    fp = popen("sudo journalctl", "r");
+    // Run the journalctl command
+    fp = popen("journalctl --no-pager -n 300 2>&1", "r");
     if (fp == NULL) {
-        perror("Failed to run journalctl command");
-        fprintf(stderr, "Error: Could not execute journalctl. Make sure you have sudo privileges.\n");
+        printf("Error: Failed to run journalctl command\n");
+        fflush(stdout);
         return;
     }
 
@@ -1815,6 +1816,7 @@ void read_journal_logs() {
 
     // Check if there was an error during reading
     if (ferror(fp)) {
+        read_error = 1;
         perror("Error reading from journalctl output");
         fprintf(stderr, "Error: Failed to read data from journalctl command.\n");
     }
@@ -1828,8 +1830,9 @@ void read_journal_logs() {
         fprintf(stderr, "Error: journalctl command failed with exit status %d\n", exit_status);
         fprintf(stderr, "This may indicate permission issues or journalctl errors.\n");
     }
-}
 
+    fflush(stdout);
+}
 // Calculate total time computer was on in different states
 long get_total_jiffies() {
     FILE *f = fopen("/proc/stat", "r");

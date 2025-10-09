@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import { runCommand } from "../lib/run-commands.js";
+import { runCommand, runSudoCommand } from "../lib/run-commands.js";
 
 const Logs = () => {
     const [systemLogs, setSystemLogs] = useState();
+    const [journalLogs, setJournalLogs] = useState();
 
     const hasRunRef = useRef(false);
 
@@ -14,6 +15,10 @@ const Logs = () => {
                 runCommand("view_system_logs", []).then((output) => {
                     setSystemLogs(output);
                     return { "type": "systemLogs", "value": output };
+                }),
+                runSudoCommand("read_journal_logs", []).then((output) => {
+                    setJournalLogs(output);
+                    return { "type": "journalLogs", "value": output };
                 }),
 
             ]).then((results) => {
