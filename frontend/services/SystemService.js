@@ -980,59 +980,64 @@ const getSecurityInformation = (setSecurityInformation, setParsedData) => {
     });
 };
 
-function normalizeOutput(s) {
-    if (typeof s !== "string") { return ""; }
-    return s.replace(/^"|\s*"$/g, "").trim();
-}
-
-function parseDirectoryScan(output, originalPath) {
-    try {
-        const text = normalizeOutput(output);
-        const lines = text.split("\n").map((l) => { return l.trim(); }).filter(Boolean);
-
-        const result = {
-            "directory": originalPath.trim(),
-            "totalItems": lines.length,
-            "items": [],
-        };
-
-        for (const line of lines) {
-        // Handle markers
-            const isDirectory = line.startsWith("[DIR]");
-            const isFile = line.startsWith("[FILE]");
-            const cleanPath = line.replace(/^\[(DIR|FILE)\]\s*/, "");
-
-            const name = cleanPath.split("/").pop() || cleanPath;
-            const extension = isFile && name.includes(".") ? name.split(".").pop() : "";
-
-            result.items.push({
-                name,
-                "fullPath": cleanPath,
-                "type": isDirectory ? "directory" : "file",
-                extension,
-            });
-        }
-
-        return result;
-    } catch (error) {
-        console.error("Error parsing directory scan:", error);
-        return {
-            "directory": originalPath?.trim?.() || "",
-            "totalItems": 0,
-            "items": [],
-            "error": error.message,
-        };
-    }
-}
-
 async function scanDirectory(directoryPath) {
+    // Input validation
     if (!directoryPath || !directoryPath.trim()) {
         throw new Error("Directory path is required");
     }
-    const raw = await runCommand("scan_directory", [directoryPath.trim()]);
-    const parsed = parseDirectoryScan(raw, directoryPath);
-    return { raw, parsed };
-}
 
+    const originalPath = directoryPath.trim();
+
+    try {
+        const rawOutput = await runCommand("scan_directory", [originalPath]);
+        
+        let parsedResult;
+        try {
+            const normalizeOutput = (s) => {
+                if (typeof s !== "string") { return ""; }
+                return s.replace(/^"|\s*"$/g, "").trim();
+            };
+
+            const text = normalizeOutput(rawOutput);
+            const lines = text.split("\n").map((l) => { return l.trim(); }).filter(Boolean);
+
+            parsedResult = {
+                "directory": originalPath,
+                "totalItems": lines.length,
+                "items": [],
+            };
+
+            for (const line of lines) {
+                // Handle markers
+                const isDirectory = line.startsWith("[DIR]");
+                const isFile = line.startsWith("[FILE]");
+                const cleanPath = line.replace(/^\[(DIR|FILE)\]\s*/, "");
+
+                const name = cleanPath.split("/").pop() || cleanPath;
+                const extension = isFile && name.includes(".") ? name.split(".").pop() : "";
+
+                parsedResult.items.push({
+                    name,
+                    "fullPath": cleanPath,
+                    "type": isDirectory ? "directory" : "file",
+                    extension,
+                });
+            }
+        } catch (parseError) {
+            console.error("Error parsing directory scan:", parseError);
+            parsedResult = {
+                "directory": originalPath,
+                "totalItems": 0,
+                "items": [],
+                "error": parseError.message,
+            };
+        }
+
+        return { "raw": rawOutput, "parsed": parsedResult };
+    } catch (commandError) {
+        console.error("Error running directory scan command:", commandError);
+        throw commandError;
+    }
+}
 
 export { getHardwareData, getLogs, getOsInformation, getPackageManagers, getStorageInfo, getTemperatureInfo, getRunningProcesses, getSecurityInformation, scanDirectory };
