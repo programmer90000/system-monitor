@@ -1,44 +1,9 @@
 import React, { useState } from "react";
-import { runCommand } from "../lib/run-commands.js";
+import { scanDirectory } from "../../services/SystemService.js";
 
 const Utilities = () => {
     const [directoryPath, setDirectoryPath] = useState("");
     const [isScanning, setIsScanning] = useState(false);
-
-    const parseDirectoryScan = (output) => {
-        try {
-            const lines = output.split("\n").filter((line) => { return line.trim(); });
-            const result = {
-                "directory": directoryPath.trim(),
-                "totalItems": lines.length,
-                "items": [],
-            };
-
-            lines.forEach((line) => {
-                const fullPath = line.trim();
-                const fileName = fullPath.split("/").pop();
-
-                // Check for [DIR] or [FILE] markers
-                const isDirectory = line.startsWith("[DIR]");
-                const isFile = line.startsWith("[FILE]");
-                const cleanPath = fullPath.replace(/^\[(DIR|FILE)\] /, "");
-            
-                const item = {
-                    "name": fileName,
-                    "fullPath": cleanPath,
-                    "type": isDirectory ? "directory" : "file",
-                    "extension": isFile && fileName.includes(".") ? fileName.split(".").pop() : "",
-                };
-            
-                result.items.push(item);
-            });
-
-            return result;
-        } catch (error) {
-            console.error("Error parsing directory scan:", error);
-            return { "directory": directoryPath.trim(), "totalItems": 0, "items": [], "error": error.message };
-        }
-    };
 
     const handleScanDirectory = () => {
         if (!directoryPath.trim()) {
@@ -48,10 +13,9 @@ const Utilities = () => {
 
         setIsScanning(true);
 
-        runCommand("scan_directory", [directoryPath.trim()])
-            .then((output) => {
-                const parsedData = parseDirectoryScan(output);
-                console.log(parsedData);
+        scanDirectory(directoryPath)
+            .then(({ parsed }) => {
+                console.log(parsed);
             })
             .catch((error) => {
                 console.error("Scan failed:", error);

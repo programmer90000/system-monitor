@@ -980,4 +980,59 @@ const getSecurityInformation = (setSecurityInformation, setParsedData) => {
     });
 };
 
-export { getHardwareData, getLogs, getOsInformation, getPackageManagers, getStorageInfo, getTemperatureInfo, getRunningProcesses, getSecurityInformation };
+function normalizeOutput(s) {
+    if (typeof s !== "string") { return ""; }
+    return s.replace(/^"|\s*"$/g, "").trim();
+}
+
+function parseDirectoryScan(output, originalPath) {
+    try {
+        const text = normalizeOutput(output);
+        const lines = text.split("\n").map((l) => { return l.trim(); }).filter(Boolean);
+
+        const result = {
+            "directory": originalPath.trim(),
+            "totalItems": lines.length,
+            "items": [],
+        };
+
+        for (const line of lines) {
+        // Handle markers
+            const isDirectory = line.startsWith("[DIR]");
+            const isFile = line.startsWith("[FILE]");
+            const cleanPath = line.replace(/^\[(DIR|FILE)\]\s*/, "");
+
+            const name = cleanPath.split("/").pop() || cleanPath;
+            const extension = isFile && name.includes(".") ? name.split(".").pop() : "";
+
+            result.items.push({
+                name,
+                "fullPath": cleanPath,
+                "type": isDirectory ? "directory" : "file",
+                extension,
+            });
+        }
+
+        return result;
+    } catch (error) {
+        console.error("Error parsing directory scan:", error);
+        return {
+            "directory": originalPath?.trim?.() || "",
+            "totalItems": 0,
+            "items": [],
+            "error": error.message,
+        };
+    }
+}
+
+async function scanDirectory(directoryPath) {
+    if (!directoryPath || !directoryPath.trim()) {
+        throw new Error("Directory path is required");
+    }
+    const raw = await runCommand("scan_directory", [directoryPath.trim()]);
+    const parsed = parseDirectoryScan(raw, directoryPath);
+    return { raw, parsed };
+}
+
+
+export { getHardwareData, getLogs, getOsInformation, getPackageManagers, getStorageInfo, getTemperatureInfo, getRunningProcesses, getSecurityInformation, scanDirectory };
