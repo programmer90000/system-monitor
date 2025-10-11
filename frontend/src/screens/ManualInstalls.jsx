@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { runCommand } from "../lib/run-commands.js";
+import { getManualInstallsInfo } from "../../services/SystemService.js";
 
 const ManualInstalls = () => {
     const [manualInstalls, setManualInstalls] = useState("");
@@ -7,27 +7,15 @@ const ManualInstalls = () => {
     const [currentPath, setCurrentPath] = useState(["opt"]);
     const [availableOptions, setAvailableOptions] = useState([]);
     const [currentFiles, setCurrentFiles] = useState([]);
+    const [parsedData, setParsedData] = useState(null);
+
     const hasRunRef = useRef(false);
 
     useEffect(() => {
         if (!hasRunRef.current) {
             hasRunRef.current = true;
 
-            Promise.allSettled([
-                runCommand("list_manual_installs", []).then((output) => {
-                    setManualInstalls(output);
-                    return output;
-                }),
-            ]).then((results) => {
-                results.forEach((result, index) => {
-                    if (result.status === "fulfilled") {
-                        console.log("Raw output:", result.value);
-                    }
-                    if (result.status === "rejected") {
-                        console.error(`Command ${index} failed: ${result.reason}`);
-                    }
-                });
-            });
+            getManualInstallsInfo(setManualInstalls, setDirectoryStructure, setCurrentPath, setAvailableOptions, setCurrentFiles, setParsedData);
         }
     }, []);
 

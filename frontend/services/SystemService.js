@@ -1040,4 +1040,22 @@ async function scanDirectory(directoryPath) {
     }
 }
 
-export { getHardwareData, getLogs, getOsInformation, getPackageManagers, getStorageInfo, getTemperatureInfo, getRunningProcesses, getSecurityInformation, scanDirectory };
+const getManualInstallsInfo = (setManualInstalls, setDirectoryStructure, setCurrentPath, setAvailableOptions, setCurrentFiles, setParsedData) => {
+    Promise.allSettled([
+        runCommand("list_manual_installs", []).then((output) => {
+            setManualInstalls(output);
+            return { "type": "manualInstalls", "value": output };
+        }),
+    ]).then((results) => {
+        results.forEach((result, index) => {
+            if (result.status === "fulfilled") {
+                console.log("Raw output:", result.value);
+            }
+            if (result.status === "rejected") {
+                console.error(`Command ${index} failed: ${result.reason}`);
+            }
+        });
+    });
+};
+
+export { getHardwareData, getLogs, getOsInformation, getPackageManagers, getStorageInfo, getTemperatureInfo, getRunningProcesses, getSecurityInformation, scanDirectory, getManualInstallsInfo };
