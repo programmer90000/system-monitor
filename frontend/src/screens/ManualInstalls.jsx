@@ -116,13 +116,10 @@ const ManualInstalls = () => {
                 // Handle directory
                 const fullPath = cleanLine.substring(6).trim();
                 addDirectory(fullPath);
-            } else if (cleanLine.trim() && !cleanLine.startsWith("Manually installed programs")) {
+            } else if (cleanLine.startsWith("[FILE]")) {
                 // Handle file
-                const fullPath = cleanLine.trim();
-                
-                if (fullPath.startsWith("/opt/")) {
-                    addFile(fullPath);
-                }
+                const fullPath = cleanLine.substring(7).trim();                
+                addFile(fullPath);
             }
         });
 
