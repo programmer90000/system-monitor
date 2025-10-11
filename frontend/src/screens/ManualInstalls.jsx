@@ -15,14 +15,12 @@ const ManualInstalls = () => {
         if (!hasRunRef.current) {
             hasRunRef.current = true;
 
-            getManualInstallsInfo(setManualInstalls, setDirectoryStructure, setCurrentPath, setAvailableOptions, setCurrentFiles, setParsedData);
+            getManualInstallsInfo(manualInstalls, setManualInstalls, setDirectoryStructure, setCurrentPath, setAvailableOptions, setCurrentFiles, setParsedData);
         }
     }, []);
 
     // Build directory structure from the output - SAFE VERSION
     useEffect(() => {
-        if (!manualInstalls) { return; }
-
         const lines = manualInstalls.split("\n");
         const structure = {
             "opt": {
